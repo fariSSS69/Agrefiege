@@ -2,24 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:motion_tab_bar/MotionTabBar.dart';
 import 'package:motion_tab_bar/MotionTabBarController.dart';
 import 'package:agrefiege/pages/dashboard_page.dart';
-import 'package:agrefiege/pages/profile_page.dart';
+import 'package:agrefiege/pages/home_page.dart';
 import 'package:agrefiege/pages/settings_page.dart';
 
-class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+class ProfilePage extends StatefulWidget {
+  const ProfilePage({Key? key}) : super(key: key);
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  late MotionTabBarController _motionTabBarController;
+class _ProfilePageState extends State<ProfilePage>
+    with TickerProviderStateMixin {
+  late MotionTabBarController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _motionTabBarController = MotionTabBarController(
-      initialIndex: 1,
+    _tabController = MotionTabBarController(
+      initialIndex: 2,
       length: 4,
       vsync: this,
     );
@@ -27,7 +28,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _motionTabBarController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -35,11 +36,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
       ),
       bottomNavigationBar: MotionTabBar(
-        controller: _motionTabBarController,
-        initialSelectedTab: "Accueil",
+        controller: _tabController,
+        initialSelectedTab: "Profil",
         labels: const ["Tableau de bord", "Accueil", "Profil", "Paramètre"],
         icons: const [
           Icons.dashboard,
@@ -62,7 +62,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         tabBarColor: Colors.white,
         onTabItemSelected: (int value) {
           setState(() {
-            _motionTabBarController.index = value;
+            _tabController.index = value;
           });
           switch (value) {
             case 0:
@@ -70,10 +70,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   .push(MaterialPageRoute(builder: (_) => DashboardPage()));
               break;
             case 1:
+              Navigator.of(context)
+                  .push(MaterialPageRoute(builder: (_) => HomePage()));
               break;
             case 2:
-              Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => ProfilePage()));
               break;
             case 3:
               Navigator.of(context)
@@ -82,9 +82,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           }
         },
       ),
-      body:
-          Container(), 
-          
+      body: Center(
+        child: const Text('Profile Page Content'),
+      ),
     );
   }
 }
