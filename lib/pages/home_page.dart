@@ -14,12 +14,13 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late MotionTabBarController _motionTabBarController;
+  int _selectedIndex = 1; // L'index de départ correspond à l'onglet "Accueil"
 
   @override
   void initState() {
     super.initState();
     _motionTabBarController = MotionTabBarController(
-      initialIndex: 1,
+      initialIndex: _selectedIndex,
       length: 4,
       vsync: this,
     );
@@ -33,20 +34,22 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    // Les pages que vous souhaitez afficher
+    final List<Widget> _pages = [
+      DashboardPage(),
+      Container(), // Remplacez par votre véritable page d'accueil
+      ProfilePage(),
+      SettingsPage(),
+    ];
+
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
       ),
       bottomNavigationBar: MotionTabBar(
         controller: _motionTabBarController,
-        initialSelectedTab: "Accueil",
+        initialSelectedTab: "Accueil", // L'onglet sélectionné au démarrage
         labels: const ["Tableau de bord", "Accueil", "Profil", "Paramètre"],
-        icons: const [
-          Icons.dashboard,
-          Icons.home,
-          Icons.people_alt,
-          Icons.settings
-        ],
+        icons: const [Icons.dashboard, Icons.home, Icons.people_alt, Icons.settings],
         tabSize: 50,
         tabBarHeight: 55,
         textStyle: const TextStyle(
@@ -62,29 +65,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         tabBarColor: Colors.white,
         onTabItemSelected: (int value) {
           setState(() {
-            _motionTabBarController.index = value;
+            _selectedIndex = value; // Mettre à jour l'index de l'onglet sélectionné
+            _motionTabBarController.index = value; // Mettre à jour le contrôleur de l'onglet
           });
-          switch (value) {
-            case 0:
-              Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => DashboardPage()));
-              break;
-            case 1:
-              break;
-            case 2:
-              Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => ProfilePage()));
-              break;
-            case 3:
-              Navigator.of(context)
-                  .push(MaterialPageRoute(builder: (_) => SettingsPage()));
-              break;
-          }
         },
       ),
-      body:
-          Container(), 
-          
+      body: IndexedStack(
+        index: _selectedIndex, // L'index de la page actuelle
+        children: _pages, // Les pages à afficher
+      ),
     );
   }
 }
