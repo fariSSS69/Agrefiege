@@ -1,79 +1,120 @@
-import 'package:flutter/material.dart';
-import 'package:motion_tab_bar/MotionTabBar.dart';
-import 'package:motion_tab_bar/MotionTabBarController.dart';
 import 'package:agrefiege/pages/dashboard_page.dart';
 import 'package:agrefiege/pages/profile_page.dart';
 import 'package:agrefiege/pages/settings_page.dart';
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:motion_tab_bar/MotionTabBarController.dart';
+import 'package:motion_tab_bar/MotionTabBar.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({Key? key}) : super(key: key);
+  final String? userEmail;
+
+  const HomePage({Key? key, this.userEmail}) : super(key: key);
 
   @override
-  State<HomePage> createState() => _HomePageState();
+  _HomePageState createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  late MotionTabBarController _motionTabBarController;
-  int _selectedIndex = 1; // L'index de départ correspond à l'onglet "Accueil"
+  late MotionTabBarController _tabController;
+  late bool isAdmin;
 
   @override
   void initState() {
     super.initState();
-    _motionTabBarController = MotionTabBarController(
-      initialIndex: _selectedIndex,
-      length: 4,
-      vsync: this,
-    );
+    // TODO Changer l'adresse email par l'adresse email de l'administrateur
+    isAdmin = widget.userEmail == 'faris.maisonneuve@wanadoo.fr' ||
+        FirebaseAuth.instance.currentUser?.email ==
+            'faris.maisonneuve@wanadoo.fr';
+    _tabController =
+        MotionTabBarController(length: isAdmin ? 4 : 4, vsync: this);
   }
 
   @override
   void dispose() {
-    _motionTabBarController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    // Les pages que vous souhaitez afficher
-    final List<Widget> _pages = [
+    final List<IconData> adminTabs = [
+      Icons.home,
+      Icons.dashboard,
+      Icons.people,
+      Icons.settings,
+    ];
+
+    final List<IconData> observerTabs = [
+      Icons.home,
+      Icons.dashboard,
+      Icons.people,
+      Icons.settings,
+    ];
+
+    final List<Widget> adminPages = [
+      _buildAdminHomeView(),
       DashboardPage(),
-      Container(), // Remplacez par votre véritable page d'accueil
+      ProfilePage(),
+      SettingsPage(),
+    ];
+
+    final List<Widget> observerPages = [
+      // _buildObserverView(), la premiere page qui s'affichera (definis plus bas)
+      _buildObserverView(),
+      DashboardPage(),
       ProfilePage(),
       SettingsPage(),
     ];
 
     return Scaffold(
-      appBar: AppBar(
-      ),
+      appBar: AppBar(),
       bottomNavigationBar: MotionTabBar(
-        controller: _motionTabBarController,
-        initialSelectedTab: "Accueil", // L'onglet sélectionné au démarrage
-        labels: const ["Tableau de bord", "Accueil", "Profil", "Paramètre"],
-        icons: const [Icons.dashboard, Icons.home, Icons.people_alt, Icons.settings],
-        tabSize: 50,
-        tabBarHeight: 55,
-        textStyle: const TextStyle(
-          fontSize: 12,
-          color: Colors.black,
-          fontWeight: FontWeight.w500,
-        ),
-        tabIconColor: Colors.blue[600],
-        tabIconSize: 28.0,
-        tabIconSelectedSize: 26.0,
-        tabSelectedColor: Colors.blue[900],
-        tabIconSelectedColor: Colors.white,
-        tabBarColor: Colors.white,
+        labels: isAdmin
+            ? ["Home", "Dashboard", "Profile", "Settings"]
+            : ["Home", "Dashboard", "Profile", "Settings"],
+        initialSelectedTab: isAdmin ? "Home" : "Home",
+        tabIconColor: Colors.blue,
+        tabSelectedColor: Colors.blueAccent,
         onTabItemSelected: (int value) {
           setState(() {
-            _selectedIndex = value; // Mettre à jour l'index de l'onglet sélectionné
-            _motionTabBarController.index = value; // Mettre à jour le contrôleur de l'onglet
+            _tabController.index = value;
           });
         },
+        icons: isAdmin ? adminTabs : observerTabs,
+        textStyle: TextStyle(color: Colors.blueAccent),
+        controller: _tabController,
       ),
       body: IndexedStack(
-        index: _selectedIndex, // L'index de la page actuelle
-        children: _pages, // Les pages à afficher
+        index: _tabController.index,
+        children: isAdmin ? adminPages : observerPages,
       ),
+    );
+  }
+
+  Widget _buildAdminHomeView() {
+    // Admin Home avec list
+    return Center(
+      child: DropdownButton<String>(
+        items: <String>['Option 1', 'Option 2', 'Option 3', 'Option 4']
+            .map((String value) {
+          return DropdownMenuItem<String>(
+            value: value,
+            child: Text(value),
+          );
+        }).toList(),
+        onChanged: (_) {
+          // Logic to handle selection here
+        },
+      ),
+    );
+  }
+
+  Widget _buildObserverView() {
+    // Observateur Home avec message
+    return Center(
+      child: Text(
+          'Vous êtes connecté en tant qu\'observateur, vous êtes observateur du site de'),
     );
   }
 }

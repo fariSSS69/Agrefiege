@@ -1,3 +1,4 @@
+import 'package:agrefiege/pages/home_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
@@ -166,7 +167,7 @@ class _LoginPageState extends State<LoginPage> {
     _isSigning = true;
   });
 
-  String email = _emailController.text.trim(); // Assurez-vous d'éliminer les espaces superflus
+  String email = _emailController.text.trim();
   String password = _passwordController.text.trim();
 
   try {
@@ -174,14 +175,12 @@ class _LoginPageState extends State<LoginPage> {
         await _firebaseAuth.signInWithEmailAndPassword(email: email, password: password);
 
     showToast(message: "L'utilisateur s'est connecté avec succès.");
-    // TODO changer l'email par celui de l'administrateur
-    if (email == 'faris.maisonneuve@wanadoo.fr') {
-      // Si l'utilisateur est l'administrateur, naviguez vers HomePage
-      Navigator.pushReplacementNamed(context, '/home');
-    } else {
-      // Sinon, naviguez vers dashboard
-      Navigator.pushReplacementNamed(context, '/dashboard');
-    }
+    
+    // Redirigez toujours vers la page 'HomePage' qui déterminera le contenu à afficher
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => HomePage(userEmail: userCredential.user?.email)),
+    );
   } on FirebaseAuthException catch (e) {
     showToast(message: "Une erreur est survenue: ${e.message}");
   } finally {
