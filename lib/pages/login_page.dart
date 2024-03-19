@@ -162,27 +162,34 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _signIn() async {
-    setState(() {
-      _isSigning = true;
-    });
+  setState(() {
+    _isSigning = true;
+  });
 
-    String email = _emailController.text;
-    String password = _passwordController.text;
+  String email = _emailController.text.trim(); // Assurez-vous d'éliminer les espaces superflus
+  String password = _passwordController.text.trim();
 
-    User? user = await _auth.signInWithEmailAndPassword(email, password);
+  try {
+    UserCredential userCredential =
+        await _firebaseAuth.signInWithEmailAndPassword(email: email, password: password);
 
+    showToast(message: "L'utilisateur s'est connecté avec succès.");
+    // TODO changer l'email par celui de l'administrateur
+    if (email == 'faris.maisonneuve@wanadoo.fr') {
+      // Si l'utilisateur est l'administrateur, naviguez vers HomePage
+      Navigator.pushReplacementNamed(context, '/home');
+    } else {
+      // Sinon, naviguez vers dashboard
+      Navigator.pushReplacementNamed(context, '/dashboard');
+    }
+  } on FirebaseAuthException catch (e) {
+    showToast(message: "Une erreur est survenue: ${e.message}");
+  } finally {
     setState(() {
       _isSigning = false;
     });
-
-    if (user != null) {
-      showToast(message: "L'utilisateur s'est connecté avec succès.");
-      Navigator.pushNamed(context, "/home");
-    } else {
-      showToast(message: "Une erreur est survenue.");
-    }
   }
-
+}
 
   _signInWithGoogle()async{
 
