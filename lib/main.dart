@@ -1,3 +1,5 @@
+import 'package:agrefiege/pages/dashboard_page.dart';
+import 'package:agrefiege/pages/settings_page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +42,9 @@ class MyApp extends StatelessWidget {
         '/login': (context) => LoginPage(),
         '/signUp': (context) => SignUpPage(),
         '/home': (context) => HomePage(),
+        '/settings': (context) => SettingsPage(), 
+        '/dashboard': (context) => DashboardPage(), 
+
       },
     );
   }
