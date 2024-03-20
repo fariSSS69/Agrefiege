@@ -110,11 +110,34 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildObserverView() {
-    // Observateur Home avec message
-    return Center(
-      child: Text(
-          'Vous êtes connecté en tant qu\'observateur, vous êtes observateur du site de'),
-    );
-  }
+ Widget _buildObserverView() {
+  String userEmail = FirebaseAuth.instance.currentUser?.email ?? 'Utilisateur';
+
+  // Observateur Home avec message et email en gras
+  return Center(
+    child: RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: TextStyle(
+          color: Colors.black,
+          fontSize: 16.0,
+        ),
+        children: [
+          TextSpan(
+            text: 'Bienvenue ',
+          ),
+          TextSpan(
+            text: userEmail,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          TextSpan(
+            text: ' vous êtes connecté en tant qu\'observateur.',
+          ),
+        ],
+      ),
+    ),
+  );
+}
 }
