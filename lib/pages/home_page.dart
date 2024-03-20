@@ -71,9 +71,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       appBar: AppBar(),
       bottomNavigationBar: MotionTabBar(
         labels: isAdmin
-            ? ["Home", "Dashboard", "Profile", "Settings"]
-            : ["Home", "Dashboard", "Profile", "Settings"],
-        initialSelectedTab: isAdmin ? "Home" : "Home",
+            ? ["Accueil", "Tableau de bord", "Profil", "Paramètre"]
+            : ["Accueil", "Tableau de bord", "Profil", "Paramètre"],
+        initialSelectedTab: isAdmin ? "Accueil" : "Accueil",
         tabIconColor: Colors.blue,
         tabSelectedColor: Colors.blueAccent,
         onTabItemSelected: (int value) {
