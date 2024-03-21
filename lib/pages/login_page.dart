@@ -8,8 +8,9 @@ import 'package:agrefiege/widgets/form_container_widget.dart';
 import 'package:agrefiege/global/common/toast.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:google_sign_in/google_sign_in.dart';
-
-
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/widgets.dart';
 
 import '../../firebase_auth_implementation/firebase_auth_services.dart';
 
@@ -26,6 +27,15 @@ class _LoginPageState extends State<LoginPage> {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   TextEditingController _emailController = TextEditingController();
   TextEditingController _passwordController = TextEditingController();
+
+  Future<bool> verifierObservateur(String email) async {
+    final QuerySnapshot observateurs = await FirebaseFirestore.instance
+        .collection('Observateurs')
+        .where('email', isEqualTo: email)
+        .get();
+
+    return observateurs.docs.isNotEmpty;
+  }
 
   @override
   void dispose() {
@@ -81,14 +91,17 @@ class _LoginPageState extends State<LoginPage> {
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Center(
-                    child: _isSigning ? CircularProgressIndicator(
-                      color: Colors.white,) : Text(
-                      "Connexion",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    child: _isSigning
+                        ? CircularProgressIndicator(
+                            color: Colors.white,
+                          )
+                        : Text(
+                            "Connexion",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -125,11 +138,10 @@ class _LoginPageState extends State<LoginPage> {
               //   ),
               // ),
 
-
               // SizedBox(
               //   height: 20,
               // ),
-              // TODO Sign up implementation 
+              // TODO Sign up implementation
               // Row(
               //   mainAxisAlignment: MainAxisAlignment.center,
               //   children: [
@@ -163,44 +175,50 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void _signIn() async {
-  setState(() {
-    _isSigning = true;
-  });
-
-  String email = _emailController.text.trim();
-  String password = _passwordController.text.trim();
-
-  try {
-    UserCredential userCredential =
-        await _firebaseAuth.signInWithEmailAndPassword(email: email, password: password);
-
-    showToast(message: "L'utilisateur s'est connecté avec succès.");
-    
-    // Redirigez toujours vers la page 'HomePage' qui déterminera le contenu à afficher
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => HomePage(userEmail: userCredential.user?.email)),
-    );
-  } on FirebaseAuthException catch (e) {
-    showToast(message: "Une erreur est survenue: ${e.message}");
-  } finally {
     setState(() {
-      _isSigning = false;
+      _isSigning = true;
     });
+
+    String email = _emailController.text.trim();
+    String password = _passwordController.text.trim();
+
+    try {
+      UserCredential userCredential = await _firebaseAuth
+          .signInWithEmailAndPassword(email: email, password: password);
+
+      bool isObserver = await verifierObservateur(email);
+      if (isObserver) {
+        // Si l'utilisateur est un observateur, redirigez-le vers la page HomePage
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) =>
+                HomePage(userEmail: userCredential.user?.email),
+          ),
+        );
+      } else {
+        // Si l'utilisateur n'est pas un observateur, affichez un message d'erreur
+        showToast(message: "L'utilisateur n'est pas un observateur.");
+      }
+    } on FirebaseAuthException catch (e) {
+      showToast(message: "Une erreur est survenue: ${e.message}");
+    } finally {
+      setState(() {
+        _isSigning = false;
+      });
+    }
   }
-}
 
-  _signInWithGoogle()async{
-
+  _signInWithGoogle() async {
     final GoogleSignIn _googleSignIn = GoogleSignIn();
 
     try {
+      final GoogleSignInAccount? googleSignInAccount =
+          await _googleSignIn.signIn();
 
-      final GoogleSignInAccount? googleSignInAccount = await _googleSignIn.signIn();
-
-      if(googleSignInAccount != null ){
-        final GoogleSignInAuthentication googleSignInAuthentication = await
-        googleSignInAccount.authentication;
+      if (googleSignInAccount != null) {
+        final GoogleSignInAuthentication googleSignInAuthentication =
+            await googleSignInAccount.authentication;
 
         final AuthCredential credential = GoogleAuthProvider.credential(
           idToken: googleSignInAuthentication.idToken,
@@ -208,15 +226,10 @@ class _LoginPageState extends State<LoginPage> {
         );
 
         await _firebaseAuth.signInWithCredential(credential);
-        Navigator.pushNamed(context, "/home");
+        Navigator.pushNamed(context as BuildContext, "/home");
       }
-
-    }catch(e) {
-showToast(message: "Une erreur est survenue $e");
+    } catch (e) {
+      showToast(message: "Une erreur est survenue $e");
     }
-
-
   }
-
-
 }
