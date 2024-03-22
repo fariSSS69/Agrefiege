@@ -1,6 +1,7 @@
 import 'package:agrefiege/pages/dashboard_page.dart';
 import 'package:agrefiege/pages/profile_page.dart';
 import 'package:agrefiege/pages/settings_page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:motion_tab_bar/MotionTabBarController.dart';
@@ -93,51 +94,84 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildAdminHomeView() {
-    // Admin Home avec list
-    return Center(
-      child: DropdownButton<String>(
-        items: <String>['Option 1', 'Option 2', 'Option 3', 'Option 4']
-            .map((String value) {
-          return DropdownMenuItem<String>(
-            value: value,
-            child: Text(value),
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance.collection('Lieux').get(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Center(child: CircularProgressIndicator());
+        }
+        if (snapshot.hasError) {
+          return Center(child: Text('Erreur: ${snapshot.error}'));
+        }
+        if (snapshot.hasData) {
+          if (snapshot.data!.docs.isEmpty) {
+            return Center(child: Text('Aucun lieu trouvé.'));
+          }
+
+          List<DropdownMenuItem<String>> dropdownItems = snapshot.data!.docs
+              .map((doc) {
+                var lieu = doc.data() as Map<String, dynamic>;
+                if (lieu['Nom_lieu'] == null) {
+                  return null;
+                }
+                return DropdownMenuItem<String>(
+                  value: lieu['Nom_lieu'],
+                  child: Text(lieu['Nom_lieu']),
+                );
+              })
+              .where((item) => item != null)
+              .cast<DropdownMenuItem<String>>()
+              .toList();
+
+          if (dropdownItems.isEmpty) {
+            return Center(child: Text('Aucun lieu trouvé.'));
+          }
+
+          return Center(
+            child: DropdownButton<String>(
+              value: dropdownItems.first.value,
+              items: dropdownItems,
+              onChanged: (value) {
+                // A changer TODO
+                print('Lieu sélectionné: $value');
+              },
+            ),
           );
-        }).toList(),
-        onChanged: (_) {
-          // Logic to handle selection here
-        },
-      ),
+        }
+        return Center(child: Text('Aucune donnée disponible.'));
+      },
     );
   }
 
- Widget _buildObserverView() {
-  String userEmail = FirebaseAuth.instance.currentUser?.email ?? 'Utilisateur';
+  Widget _buildObserverView() {
+    String userEmail =
+        FirebaseAuth.instance.currentUser?.email ?? 'Utilisateur';
 
-  // Observateur Home avec message et email en gras
-  return Center(
-    child: RichText(
-      textAlign: TextAlign.center,
-      text: TextSpan(
-        style: TextStyle(
-          color: Colors.black,
-          fontSize: 16.0,
-        ),
-        children: [
-          TextSpan(
-            text: 'Bienvenue ',
+    // Observateur Home avec message et email en gras
+    return Center(
+      child: RichText(
+        textAlign: TextAlign.center,
+        text: TextSpan(
+          style: TextStyle(
+            color: Colors.black,
+            fontSize: 16.0,
           ),
-          TextSpan(
-            text: userEmail,
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
+          children: [
+            TextSpan(
+              text: 'Bienvenue ',
             ),
-          ),
-          TextSpan(
-            text: ' vous êtes connecté en tant qu\'observateur.',
-          ),
-        ],
+            TextSpan(
+              text: userEmail,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            TextSpan(
+              text: ' vous êtes connecté en tant qu\'observateur.',
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }
