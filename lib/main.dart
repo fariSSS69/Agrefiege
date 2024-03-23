@@ -8,6 +8,7 @@ import 'package:agrefiege/pages/splash_screen.dart';
 import 'package:agrefiege/pages/home_page.dart';
 import 'package:agrefiege/pages/sign_up_page.dart';
 import 'package:agrefiege/pages/login_page.dart';
+import 'package:agrefiege/pages/observation_page.dart';
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +45,7 @@ class MyApp extends StatelessWidget {
         '/home': (context) => HomePage(),
         '/settings': (context) => SettingsPage(), 
         '/dashboard': (context) => DashboardPage(), 
+        'observation': (context) => ObservationPage(),
 
       },
     );
