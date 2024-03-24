@@ -1,4 +1,5 @@
 import 'package:agrefiege/pages/dashboard_page.dart';
+import 'package:agrefiege/pages/observation_page.dart';
 import 'package:agrefiege/pages/profile_page.dart';
 import 'package:agrefiege/pages/settings_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -42,21 +43,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final List<IconData> adminTabs = [
       Icons.home,
       Icons.dashboard,
-      Icons.people,
+      Icons.visibility,
       Icons.settings,
     ];
 
     final List<IconData> observerTabs = [
       Icons.home,
       Icons.dashboard,
-      Icons.people,
+      Icons.visibility,
       Icons.settings,
     ];
 
     final List<Widget> adminPages = [
       _buildAdminHomeView(),
       DashboardPage(),
-      ProfilePage(),
+      ObservationPage(),
       SettingsPage(),
     ];
 
@@ -64,7 +65,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       // _buildObserverView(), la premiere page qui s'affichera (definis plus bas)
       _buildObserverView(),
       DashboardPage(),
-      ProfilePage(),
+      ObservationPage(),
       SettingsPage(),
     ];
 
@@ -72,8 +73,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       appBar: AppBar(),
       bottomNavigationBar: MotionTabBar(
         labels: isAdmin
-            ? ["Accueil", "Tableau de bord", "Profil", "Paramètre"]
-            : ["Accueil", "Tableau de bord", "Profil", "Paramètre"],
+            ? ["Accueil", "Tableau de bord", "Observation", "Paramètre"]
+            : ["Accueil", "Tableau de bord", "Observation", "Paramètre"],
         initialSelectedTab: isAdmin ? "Accueil" : "Accueil",
         tabIconColor: Colors.blue,
         tabSelectedColor: Colors.blueAccent,
