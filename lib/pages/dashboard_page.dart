@@ -51,9 +51,7 @@ class _DashboardPageState extends State<DashboardPage> {
               } else {
                 return Column(
                   children: lieuxRefs.map((lieuRef) {
-                    return Expanded(
-                      child: _buildObservationsList(lieuRef),
-                    );
+                    return _buildObservationsList(lieuRef);
                   }).toList(),
                 );
               }
