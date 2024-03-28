@@ -10,15 +10,13 @@ class ObservationPage extends StatefulWidget {
 class _ObservationPageState extends State<ObservationPage> {
   late User _user;
   String? _lieuId;
-  String? _selectedParcelle;
-  String? _selectedNotation;
-  TextEditingController _notesController =
-      TextEditingController(); // Contrôleur pour le champ de texte des notes
+  List<Map<String, dynamic>> _rows = [];
 
   @override
   void initState() {
     super.initState();
     _getUserData();
+    _addRow();
   }
 
   Future<void> _getUserData() async {
@@ -30,16 +28,34 @@ class _ObservationPageState extends State<ObservationPage> {
         .get();
     final userSnapshotData = userSnapshot.docs.first.data();
     _lieuId = userSnapshotData['Lieux'][0].id;
-    setState(
-        () {}); // Ajouter setState() pour notifier Flutter que l'état de la page a changé
+    setState(() {});
+  }
+
+  void _addRow() {
+    setState(() {
+      _rows.add({
+        'parcelle': null,
+        'notation': null,
+        'notes': TextEditingController(),
+      });
+    });
+  }
+
+  Future<Map<String, dynamic>> _getNotationData(String parcelleId) async {
+    final notationDoc = await FirebaseFirestore.instance
+        .collection('Notations')
+        .where('Parcelle',
+            isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
+        .get()
+        .then((querySnapshot) => querySnapshot.docs.first);
+
+    return notationDoc.data() as Map<String, dynamic>;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Observation Page'),
-      ),
+      appBar: AppBar(),
       body: Center(
         child: _lieuId == null
             ? CircularProgressIndicator()
@@ -63,102 +79,143 @@ class _ObservationPageState extends State<ObservationPage> {
                         .toList();
                     return Column(
                       children: [
-                        Text(
-                          'Parcelles',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        DropdownButton<String>(
-                          value: _selectedParcelle,
-                          onChanged: (newValue) {
-                            setState(() {
-                              _selectedParcelle = newValue;
-                              _selectedNotation =
-                                  null; // Réinitialiser la notation sélectionnée
-                            });
-                          },
-                          items: parcelles
-                              .map<DropdownMenuItem<String>>((String value) {
-                            return DropdownMenuItem<String>(
-                              value: value,
-                              child: Text(value),
-                            );
-                          }).toList(),
-                        ),
-                        SizedBox(height: 20),
-                        if (_selectedParcelle != null)
-                          FutureBuilder<QuerySnapshot>(
-                            future: FirebaseFirestore.instance
-                                .collection('Notations')
-                                .where('Parcelle',
-                                    isEqualTo: FirebaseFirestore.instance
-                                        .doc('Parcelles/$_selectedParcelle'))
-                                .get(),
-                            builder: (context, snapshot) {
-                              if (snapshot.connectionState ==
-                                  ConnectionState.waiting) {
-                                return CircularProgressIndicator();
-                              } else if (snapshot.hasError) {
-                                return Text('Error: ${snapshot.error}');
-                              } else if (!snapshot.hasData ||
-                                  snapshot.data!.docs.isEmpty) {
-                                return Text(
-                                    'Aucune notation disponible pour cette parcelle');
-                              } else {
-                                var notationData = snapshot.data!.docs.first
-                                    .data()! as Map<String, dynamic>;
-                                List<String> notations =
-                                    notationData.keys.toList();
-                                return Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Notations',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
+                        Table(
+                          children: [
+                            TableRow(
+                              children: [
+                                TableCell(
+                                  child: Text(
+                                    'Parcelles',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                TableCell(
+                                  child: Text(
+                                    'Notations',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                TableCell(
+                                  child: Text(
+                                    'Notes',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            ..._rows.map((row) {
+                              return TableRow(
+                                children: [
+                                  TableCell(
+                                    child: Container(
+                                      height: 56,
+                                      alignment: Alignment.center,
+                                      child: DropdownButton<String>(
+                                        value: row['parcelle'],
+                                        onChanged: (newValue) {
+                                          setState(() {
+                                            row['parcelle'] = newValue;
+                                            row['notation'] = null;
+                                          });
+                                        },
+                                        items: parcelles
+                                            .map<DropdownMenuItem<String>>(
+                                                (String value) {
+                                          return DropdownMenuItem<String>(
+                                            value: value,
+                                            child: Text(value),
+                                          );
+                                        }).toList(),
                                       ),
                                     ),
-                                    DropdownButton<String>(
-                                      value: _selectedNotation,
-                                      onChanged: (newValue) {
-                                        setState(() {
-                                          _selectedNotation = newValue;
-                                        });
-                                      },
-                                      items: notations
-                                          .map<DropdownMenuItem<String>>(
-                                              (String value) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      }).toList(),
+                                  ),
+                                  TableCell(
+                                    child: Container(
+                                      height: 56,
+                                      alignment: Alignment.center,
+                                      child: row['parcelle'] != null
+                                          ? FutureBuilder<Map<String, dynamic>>(
+                                              future: _getNotationData(
+                                                  row['parcelle']),
+                                              builder:
+                                                  (context, notationSnapshot) {
+                                                if (notationSnapshot
+                                                        .connectionState ==
+                                                    ConnectionState.waiting) {
+                                                  return CircularProgressIndicator();
+                                                } else if (notationSnapshot
+                                                    .hasError) {
+                                                  return Text(
+                                                      'Error: ${notationSnapshot.error}');
+                                                } else if (notationSnapshot
+                                                            .data ==
+                                                        null ||
+                                                    notationSnapshot
+                                                        .data!.isEmpty) {
+                                                  return Text(
+                                                      'Aucune notation disponible pour cette parcelle');
+                                                } else {
+                                                  var notationData =
+                                                      notationSnapshot.data!;
+                                                  List<String> notations =
+                                                      notationData.keys
+                                                          .where((key) =>
+                                                              key !=
+                                                              'Parcelle') // Filtrer l'élément "Parcelle"
+                                                          .toList();
+                                                  return DropdownButton<String>(
+                                                    value: row['notation'],
+                                                    onChanged: (newValue) {
+                                                      setState(() {
+                                                        row['notation'] =
+                                                            newValue;
+                                                      });
+                                                    },
+                                                    items: notations.map<
+                                                            DropdownMenuItem<
+                                                                String>>(
+                                                        (String value) {
+                                                      return DropdownMenuItem<
+                                                          String>(
+                                                        value: value,
+                                                        child: Text(value),
+                                                      );
+                                                    }).toList(),
+                                                  );
+                                                }
+                                              },
+                                            )
+                                          : Container(),
                                     ),
-                                    SizedBox(height: 20),
-                                    Text(
-                                      'Notes',
-                                      style: TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    TextField(
-                                      controller: _notesController,
+                                  ),
+                                  TableCell(
+                                    child: TextField(
+                                      controller: row['notes'],
                                       decoration: InputDecoration(
                                         hintText: 'Entrez vos notes ici...',
                                         border: OutlineInputBorder(),
                                       ),
-                                      maxLines:
-                                          5, // Définir le nombre maximum de lignes pour le champ de texte
+                                      maxLines: 1,
                                     ),
-                                  ],
-                                );
-                              }
-                            },
-                          ),
+                                  ),
+                                ],
+                              );
+                            }).toList(),
+                          ],
+                        ),
+                        ElevatedButton(
+                          onPressed: _addRow,
+                          child: Text('Ajouter une ligne'),
+                        ),
                       ],
                     );
                   }
