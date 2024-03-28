@@ -36,21 +36,51 @@ class _ObservationPageState extends State<ObservationPage> {
       _rows.add({
         'parcelle': null,
         'notation': null,
-        'notes': TextEditingController(),
+        'Note': TextEditingController(),
       });
     });
   }
 
   Future<Map<String, dynamic>> _getNotationData(String parcelleId) async {
+    final parcelleDoc = await FirebaseFirestore.instance.doc('Parcelles/$parcelleId').get();
+    final parcelleRef = parcelleDoc.reference;
+
     final notationDoc = await FirebaseFirestore.instance
         .collection('Notations')
-        .where('Parcelle',
-            isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
+        .where('Parcelle', isEqualTo: parcelleRef)
         .get()
         .then((querySnapshot) => querySnapshot.docs.first);
 
     return notationDoc.data() as Map<String, dynamic>;
   }
+
+  Future<void> _saveData() async {
+  for (int i = 0; i < _rows.length; i++) {
+    final row = _rows[i];
+    final parcelleId = row['parcelle'];
+    final notation = row['notation'];
+    final note = row['Note'].text;
+
+    if (parcelleId != null && notation != null && note.isNotEmpty) {
+      
+
+      await FirebaseFirestore.instance.collection('Observations').add({
+        'Date_observation': Timestamp.now(),
+        'Observateur': FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
+        'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
+        'Note': note,
+        'Notations': notation, 
+      });
+    }
+  }
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Données enregistrées avec succès')),
+  );
+}
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -169,8 +199,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                                   List<String> notations =
                                                       notationData.keys
                                                           .where((key) =>
-                                                              key !=
-                                                              'Parcelle') // Filtrer l'élément "Parcelle"
+                                                              key != 'Parcelle')
                                                           .toList();
                                                   return DropdownButton<String>(
                                                     value: row['notation'],
@@ -199,7 +228,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                   ),
                                   TableCell(
                                     child: TextField(
-                                      controller: row['notes'],
+                                      controller: row['Note'],
                                       decoration: InputDecoration(
                                         hintText: 'Entrez vos notes ici...',
                                         border: OutlineInputBorder(),
@@ -215,6 +244,10 @@ class _ObservationPageState extends State<ObservationPage> {
                         ElevatedButton(
                           onPressed: _addRow,
                           child: Text('Ajouter une ligne'),
+                        ),
+                        ElevatedButton(
+                          onPressed: _saveData,
+                          child: Text('Enregistrer les données'),
                         ),
                       ],
                     );
