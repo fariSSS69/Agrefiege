@@ -41,8 +41,15 @@ class _ObservationPageState extends State<ObservationPage> {
     });
   }
 
+  void _deleteRow(int index) {
+    setState(() {
+      _rows.removeAt(index);
+    });
+  }
+
   Future<Map<String, dynamic>> _getNotationData(String parcelleId) async {
-    final parcelleDoc = await FirebaseFirestore.instance.doc('Parcelles/$parcelleId').get();
+    final parcelleDoc =
+        await FirebaseFirestore.instance.doc('Parcelles/$parcelleId').get();
     final parcelleRef = parcelleDoc.reference;
 
     final notationDoc = await FirebaseFirestore.instance
@@ -55,32 +62,28 @@ class _ObservationPageState extends State<ObservationPage> {
   }
 
   Future<void> _saveData() async {
-  for (int i = 0; i < _rows.length; i++) {
-    final row = _rows[i];
-    final parcelleId = row['parcelle'];
-    final notation = row['notation'];
-    final note = row['Note'].text;
+    for (int i = 0; i < _rows.length; i++) {
+      final row = _rows[i];
+      final parcelleId = row['parcelle'];
+      final notation = row['notation'];
+      final note = row['Note'].text;
 
-    if (parcelleId != null && notation != null && note.isNotEmpty) {
-      
-
-      await FirebaseFirestore.instance.collection('Observations').add({
-        'Date_observation': Timestamp.now(),
-        'Observateur': FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
-        'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
-        'Note': note,
-        'Notations': notation, 
-      });
+      if (parcelleId != null && notation != null && note.isNotEmpty) {
+        await FirebaseFirestore.instance.collection('Observations').add({
+          'Date_observation': Timestamp.now(),
+          'Observateur':
+              FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
+          'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
+          'Note': note,
+          'Notations': notation,
+        });
+      }
     }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Données enregistrées avec succès')),
+    );
   }
-
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text('Données enregistrées avec succès')),
-  );
-}
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -107,149 +110,217 @@ class _ObservationPageState extends State<ObservationPage> {
                     List<String> parcelles = snapshot.data!.docs
                         .map((doc) => doc['Numero_parcelle'].toString())
                         .toList();
-                    return Column(
-                      children: [
-                        Table(
-                          children: [
-                            TableRow(
+                    return SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          Container(
+                            padding: EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Table(
                               children: [
-                                TableCell(
-                                  child: Text(
-                                    'Parcelles',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                TableRow(
+                                  children: [
+                                    TableCell(
+                                      child: Text(
+                                        'Parcelles',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
                                     ),
-                                  ),
+                                    TableCell(
+                                      child: Text(
+                                        'Notations',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    TableCell(
+                                      child: Text(
+                                        'Notes',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                    TableCell(
+                                      child: Container(),
+                                    ),
+                                  ],
                                 ),
-                                TableCell(
-                                  child: Text(
-                                    'Notations',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                ..._rows.map((row) {
+                                  return TableRow(
+                                    children: [
+                                      TableCell(
+                                        child: Container(
+                                          height: 56,
+                                          alignment: Alignment.center,
+                                          child: DropdownButton<String>(
+                                            value: row['parcelle'],
+                                            onChanged: (newValue) {
+                                              setState(() {
+                                                row['parcelle'] = newValue;
+                                                row['notation'] = null;
+                                              });
+                                            },
+                                            items: parcelles
+                                                .map<DropdownMenuItem<String>>(
+                                                    (String value) {
+                                              return DropdownMenuItem<String>(
+                                                value: value,
+                                                child: Text(value),
+                                              );
+                                            }).toList(),
+                                          ),
+                                        ),
+                                      ),
+                                      TableCell(
+                                        child: Container(
+                                          height: 56,
+                                          alignment: Alignment.center,
+                                          child: row['parcelle'] != null
+                                              ? FutureBuilder<
+                                                  Map<String, dynamic>>(
+                                                  future: _getNotationData(
+                                                      row['parcelle']),
+                                                  builder: (context,
+                                                      notationSnapshot) {
+                                                    if (notationSnapshot
+                                                            .connectionState ==
+                                                        ConnectionState
+                                                            .waiting) {
+                                                      return CircularProgressIndicator();
+                                                    } else if (notationSnapshot
+                                                        .hasError) {
+                                                      return Text(
+                                                          'Error: ${notationSnapshot.error}');
+                                                    } else if (notationSnapshot
+                                                                .data ==
+                                                            null ||
+                                                        notationSnapshot
+                                                            .data!.isEmpty) {
+                                                      return Text(
+                                                          'Aucune notation disponible pour cette parcelle');
+                                                    } else {
+                                                      var notationData =
+                                                          notationSnapshot
+                                                              .data!;
+                                                      List<String> notations =
+                                                          notationData.keys
+                                                              .where((key) =>
+                                                                  key !=
+                                                                  'Parcelle')
+                                                              .toList();
+                                                      return DropdownButton<
+                                                          String>(
+                                                        value: row['notation'],
+                                                        onChanged: (newValue) {
+                                                          setState(() {
+                                                            row['notation'] =
+                                                                newValue;
+                                                          });
+                                                        },
+                                                        items: notations.map<
+                                                            DropdownMenuItem<
+                                                                String>>((String
+                                                            value) {
+                                                          return DropdownMenuItem<
+                                                              String>(
+                                                            value: value,
+                                                            child: Text(value),
+                                                          );
+                                                        }).toList(),
+                                                      );
+                                                    }
+                                                  },
+                                                )
+                                              : Container(),
+                                        ),
+                                      ),
+                                      TableCell(
+                                        child: TextField(
+                                          controller: row['Note'],
+                                          decoration: InputDecoration(
+                                            hintText: 'Entrez vos notes ici...',
+                                            border: OutlineInputBorder(),
+                                          ),
+                                          maxLines: 1,
+                                        ),
+                                      ),
+                                      TableCell(
+                                        child: IconButton(
+                                          icon: Icon(Icons.delete),
+                                          onPressed: () {
+                                            _deleteRow(_rows.indexOf(row));
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }).toList(),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    primary: Colors
+                                        .white, // Couleur de fond du bouton
+                                    onPrimary: Colors
+                                        .black, // Couleur du texte lorsque le bouton est pressé
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12), // Rembourrage du bouton
+                                    textStyle: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight
+                                            .bold), // Style du texte du bouton
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                          0), // Pas de bord arrondi
                                     ),
                                   ),
+                                  onPressed: _addRow,
+                                  child: Text('Ajouter une ligne'),
                                 ),
-                                TableCell(
-                                  child: Text(
-                                    'Notes',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
+                                SizedBox(width: 16),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    primary: Colors
+                                        .white, // Couleur de fond du bouton
+                                    onPrimary: Colors
+                                        .black, // Couleur du texte lorsque le bouton est pressé
+                                    padding: EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                        vertical: 12), // Rembourrage du bouton
+                                    textStyle: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight
+                                            .bold), // Style du texte du bouton
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                          0), // Pas de bord arrondi
                                     ),
                                   ),
+                                  onPressed: _saveData,
+                                  child: Text('Enregistrer les données'),
                                 ),
                               ],
                             ),
-                            ..._rows.map((row) {
-                              return TableRow(
-                                children: [
-                                  TableCell(
-                                    child: Container(
-                                      height: 56,
-                                      alignment: Alignment.center,
-                                      child: DropdownButton<String>(
-                                        value: row['parcelle'],
-                                        onChanged: (newValue) {
-                                          setState(() {
-                                            row['parcelle'] = newValue;
-                                            row['notation'] = null;
-                                          });
-                                        },
-                                        items: parcelles
-                                            .map<DropdownMenuItem<String>>(
-                                                (String value) {
-                                          return DropdownMenuItem<String>(
-                                            value: value,
-                                            child: Text(value),
-                                          );
-                                        }).toList(),
-                                      ),
-                                    ),
-                                  ),
-                                  TableCell(
-                                    child: Container(
-                                      height: 56,
-                                      alignment: Alignment.center,
-                                      child: row['parcelle'] != null
-                                          ? FutureBuilder<Map<String, dynamic>>(
-                                              future: _getNotationData(
-                                                  row['parcelle']),
-                                              builder:
-                                                  (context, notationSnapshot) {
-                                                if (notationSnapshot
-                                                        .connectionState ==
-                                                    ConnectionState.waiting) {
-                                                  return CircularProgressIndicator();
-                                                } else if (notationSnapshot
-                                                    .hasError) {
-                                                  return Text(
-                                                      'Error: ${notationSnapshot.error}');
-                                                } else if (notationSnapshot
-                                                            .data ==
-                                                        null ||
-                                                    notationSnapshot
-                                                        .data!.isEmpty) {
-                                                  return Text(
-                                                      'Aucune notation disponible pour cette parcelle');
-                                                } else {
-                                                  var notationData =
-                                                      notationSnapshot.data!;
-                                                  List<String> notations =
-                                                      notationData.keys
-                                                          .where((key) =>
-                                                              key != 'Parcelle')
-                                                          .toList();
-                                                  return DropdownButton<String>(
-                                                    value: row['notation'],
-                                                    onChanged: (newValue) {
-                                                      setState(() {
-                                                        row['notation'] =
-                                                            newValue;
-                                                      });
-                                                    },
-                                                    items: notations.map<
-                                                            DropdownMenuItem<
-                                                                String>>(
-                                                        (String value) {
-                                                      return DropdownMenuItem<
-                                                          String>(
-                                                        value: value,
-                                                        child: Text(value),
-                                                      );
-                                                    }).toList(),
-                                                  );
-                                                }
-                                              },
-                                            )
-                                          : Container(),
-                                    ),
-                                  ),
-                                  TableCell(
-                                    child: TextField(
-                                      controller: row['Note'],
-                                      decoration: InputDecoration(
-                                        hintText: 'Entrez vos notes ici...',
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      maxLines: 1,
-                                    ),
-                                  ),
-                                ],
-                              );
-                            }).toList(),
-                          ],
-                        ),
-                        ElevatedButton(
-                          onPressed: _addRow,
-                          child: Text('Ajouter une ligne'),
-                        ),
-                        ElevatedButton(
-                          onPressed: _saveData,
-                          child: Text('Enregistrer les données'),
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     );
                   }
                 },
