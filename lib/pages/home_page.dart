@@ -24,7 +24,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    // TODO Changer l'adresse email par l'adresse email de l'administrateur
     isAdmin = widget.userEmail == 'faris.maisonneuve@wanadoo.fr' ||
         FirebaseAuth.instance.currentUser?.email ==
             'faris.maisonneuve@wanadoo.fr';
@@ -55,22 +54,39 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     ];
 
     final List<Widget> adminPages = [
-      _buildAdminHomeView(),
+      _buildAdminHomeView(context),
       DashboardPage(),
       ObservationPage(),
       SettingsPage(),
     ];
 
     final List<Widget> observerPages = [
-      // _buildObserverView(), la premiere page qui s'affichera (definis plus bas)
-      _buildObserverView(),
+      _buildObserverView(context),
       DashboardPage(),
       ObservationPage(),
       SettingsPage(),
     ];
 
     return Scaffold(
-      appBar: AppBar(),
+      appBar: AppBar(
+        title: Text(isAdmin ? '' : ''),
+        actions: isAdmin
+            ? [
+                IconButton(
+                  icon: Icon(Icons.add_location),
+                  onPressed: () => _addNewLieu(context),
+                ),
+                IconButton(
+                  icon: Icon(Icons.add_circle_outline),
+                  onPressed: () => _addNewParcelle(context),
+                ),
+                IconButton(
+                  icon: Icon(Icons.person_add),
+                  onPressed: () => _createNewObservateur(context),
+                ),
+              ]
+            : null,
+      ),
       bottomNavigationBar: MotionTabBar(
         labels: isAdmin
             ? ["Accueil", "Tableau de bord", "Observation", "Paramètre"]
@@ -94,57 +110,37 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildAdminHomeView() {
-    return FutureBuilder<QuerySnapshot>(
-      future: FirebaseFirestore.instance.collection('Lieux').get(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-        if (snapshot.hasError) {
-          return Center(child: Text('Erreur: ${snapshot.error}'));
-        }
-        if (snapshot.hasData) {
-          if (snapshot.data!.docs.isEmpty) {
-            return Center(child: Text('Aucun lieu trouvé.'));
-          }
+  Widget _buildAdminHomeView(BuildContext context) {
+    String userEmail =
+        FirebaseAuth.instance.currentUser?.email ?? 'Utilisateur';
+    String adminMessage =
+        isAdmin ? 'Vous êtes connecté en tant qu\'administrateur.' : '';
 
-          List<DropdownMenuItem<String>> dropdownItems = snapshot.data!.docs
-              .map((doc) {
-                var lieu = doc.data() as Map<String, dynamic>;
-                if (lieu['Nom_lieu'] == null) {
-                  return null;
-                }
-                return DropdownMenuItem<String>(
-                  value: lieu['Nom_lieu'],
-                  child: Text(lieu['Nom_lieu']),
-                );
-              })
-              .where((item) => item != null)
-              .cast<DropdownMenuItem<String>>()
-              .toList();
-
-          if (dropdownItems.isEmpty) {
-            return Center(child: Text('Aucun lieu trouvé.'));
-          }
-
-          return Center(
-            child: DropdownButton<String>(
-              value: dropdownItems.first.value,
-              items: dropdownItems,
-              onChanged: (value) {
-                // A changer TODO
-                print('Lieu sélectionné: $value');
-              },
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Bienvenue $userEmail',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16.0,
             ),
-          );
-        }
-        return Center(child: Text('Aucune donnée disponible.'));
-      },
+          ),
+          SizedBox(height: 8.0),
+          Text(
+            adminMessage,
+            style: TextStyle(
+              fontStyle: isAdmin ? FontStyle.italic : FontStyle.normal,
+              fontSize: 14.0,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildObserverView() {
+  Widget _buildObserverView(BuildContext context) {
     String userEmail =
         FirebaseAuth.instance.currentUser?.email ?? 'Utilisateur';
 
@@ -173,6 +169,331 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ],
         ),
       ),
+    );
+  }
+
+  void _addNewLieu(BuildContext context) {
+    final TextEditingController _lieuIdController = TextEditingController();
+    final TextEditingController _nomLieuController = TextEditingController();
+    final TextEditingController _nombreParcellesController =
+        TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Ajouter un nouveau lieu'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                TextField(
+                  controller: _lieuIdController,
+                  decoration: InputDecoration(
+                    labelText: 'ID du lieu',
+                  ),
+                ),
+                TextField(
+                  controller: _nomLieuController,
+                  decoration: InputDecoration(
+                    labelText: 'Nom du lieu',
+                  ),
+                ),
+                TextField(
+                  controller: _nombreParcellesController,
+                  decoration: InputDecoration(
+                    labelText: 'Nombre de parcelles',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Annuler'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Ajouter'),
+              onPressed: () {
+                final String lieuId = _lieuIdController.text.trim();
+                final String nomLieu = _nomLieuController.text.trim();
+                final int nombreParcelles =
+                    int.tryParse(_nombreParcellesController.text) ?? 0;
+
+                if (lieuId.isNotEmpty &&
+                    nomLieu.isNotEmpty &&
+                    nombreParcelles > 0) {
+                  FirebaseFirestore.instance
+                      .collection('Lieux')
+                      .doc(lieuId)
+                      .get()
+                      .then((docSnapshot) {
+                    if (docSnapshot.exists) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('L\'ID du lieu existe déjà')),
+                      );
+                    } else {
+                      FirebaseFirestore.instance
+                          .collection('Lieux')
+                          .doc(lieuId)
+                          .set({
+                        'Nom_lieu': nomLieu,
+                        'Nombre_parcelles': nombreParcelles,
+                      }).then((value) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Lieu ajouté avec succès')),
+                        );
+                      }).catchError((error) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Erreur lors de l\'ajout du lieu: $error')),
+                        );
+                      });
+                    }
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            'Veuillez remplir tous les champs avec des valeurs valides')),
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _addNewParcelle(BuildContext context) {
+    final TextEditingController _parcelleIdController = TextEditingController();
+    final TextEditingController _numeroParcelleController =
+        TextEditingController();
+    final TextEditingController _lieuIdController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Ajouter une nouvelle parcelle'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                TextField(
+                  controller: _parcelleIdController,
+                  decoration: InputDecoration(
+                    labelText: 'ID de la parcelle (custom)',
+                  ),
+                ),
+                TextField(
+                  controller: _numeroParcelleController,
+                  decoration: InputDecoration(
+                    labelText: 'Numéro de la parcelle',
+                  ),
+                  keyboardType: TextInputType.number,
+                ),
+                TextField(
+                  controller: _lieuIdController,
+                  decoration: InputDecoration(
+                    labelText: 'ID du lieu référencé',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Annuler'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Ajouter'),
+              onPressed: () {
+                final String parcelleId = _parcelleIdController.text.trim();
+                final int? numeroParcelle =
+                    int.tryParse(_numeroParcelleController.text);
+                final String lieuId = _lieuIdController.text.trim();
+
+                if (parcelleId.isNotEmpty &&
+                    numeroParcelle != null &&
+                    lieuId.isNotEmpty) {
+                  FirebaseFirestore.instance
+                      .collection('Parcelles')
+                      .doc(parcelleId)
+                      .get()
+                      .then((docSnapshot) {
+                    if (docSnapshot.exists) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content: Text('L\'ID de la parcelle existe déjà')),
+                      );
+                    } else {
+                      FirebaseFirestore.instance
+                          .collection('Parcelles')
+                          .doc(parcelleId)
+                          .set({
+                        'Numero_parcelle': numeroParcelle,
+                        'Lieu': FirebaseFirestore.instance.doc('Lieux/$lieuId'),
+                      }).then((value) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text('Parcelle ajoutée avec succès')),
+                        );
+                      }).catchError((error) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Erreur lors de l\'ajout de la parcelle: $error')),
+                        );
+                      });
+                    }
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            'Veuillez remplir tous les champs avec des valeurs valides')),
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _createNewObservateur(BuildContext context) {
+    final TextEditingController _observateurIdController =
+        TextEditingController();
+    final TextEditingController _nomController = TextEditingController();
+    final TextEditingController _prenomController = TextEditingController();
+    final TextEditingController _emailController = TextEditingController();
+    final TextEditingController _lieuIdController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Créer un nouvel observateur'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                TextField(
+                  controller: _observateurIdController,
+                  decoration: InputDecoration(
+                    labelText: 'ID de l\'observateur (custom)',
+                  ),
+                ),
+                TextField(
+                  controller: _nomController,
+                  decoration: InputDecoration(
+                    labelText: 'Nom',
+                  ),
+                ),
+                TextField(
+                  controller: _prenomController,
+                  decoration: InputDecoration(
+                    labelText: 'Prénom',
+                  ),
+                ),
+                TextField(
+                  controller: _emailController,
+                  decoration: InputDecoration(
+                    labelText: 'Email',
+                  ),
+                ),
+                TextField(
+                  controller: _lieuIdController,
+                  decoration: InputDecoration(
+                    labelText: 'ID du lieu référencé',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Annuler'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: Text('Créer'),
+              onPressed: () {
+                final String observateurId =
+                    _observateurIdController.text.trim();
+                final String nom = _nomController.text.trim();
+                final String prenom = _prenomController.text.trim();
+                final String email = _emailController.text.trim();
+                final String lieuId = _lieuIdController.text.trim();
+
+                if (observateurId.isNotEmpty &&
+                    nom.isNotEmpty &&
+                    prenom.isNotEmpty &&
+                    email.isNotEmpty &&
+                    lieuId.isNotEmpty) {
+                  FirebaseFirestore.instance
+                      .collection('Observateurs')
+                      .doc(observateurId)
+                      .get()
+                      .then((docSnapshot) {
+                    if (docSnapshot.exists) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                            content:
+                                Text('L\'ID de l\'observateur existe déjà')),
+                      );
+                    } else {
+                      FirebaseFirestore.instance
+                          .collection('Observateurs')
+                          .doc(observateurId)
+                          .set({
+                        'Nom': nom,
+                        'Prenom': prenom,
+                        'email': email,
+                        'Lieux': [
+                          FirebaseFirestore.instance
+                              .collection('Lieux')
+                              .doc(lieuId)
+                        ],
+                      }).then((value) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text('Observateur créé avec succès')),
+                        );
+                      }).catchError((error) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Erreur lors de la création de l\'observateur: $error')),
+                        );
+                      });
+                    }
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text(
+                            'Veuillez remplir tous les champs avec des valeurs valides')),
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }
