@@ -62,6 +62,7 @@ class _ObservationPageState extends State<ObservationPage> {
   }
 
   Future<void> _saveData() async {
+    bool isSaved = false;
     for (int i = 0; i < _rows.length; i++) {
       final row = _rows[i];
       final parcelleId = row['parcelle'];
@@ -69,20 +70,86 @@ class _ObservationPageState extends State<ObservationPage> {
       final note = row['Note'].text;
 
       if (parcelleId != null && notation != null && note.isNotEmpty) {
-        await FirebaseFirestore.instance.collection('Observations').add({
-          'Date_observation': Timestamp.now(),
-          'Observateur':
-              FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
-          'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
-          'Note': note,
-          'Notations': notation,
-        });
+        // Vérifiez si une observation similaire existe déjà
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('Observations')
+            .where('Parcelle',
+                isEqualTo:
+                    FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
+            .where('Notations', isEqualTo: notation)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          // Il existe déjà une observation similaire
+          bool shouldReplace = await _showReplaceDialog();
+          if (shouldReplace) {
+            // Supprimez l'ancienne observation
+            await querySnapshot.docs.first.reference.delete();
+            // Ajoutez la nouvelle observation
+            await _addObservation(parcelleId, notation, note);
+            isSaved = true;
+          }
+        } else {
+          // Aucune observation similaire, ajoutez simplement la nouvelle observation
+          await _addObservation(parcelleId, notation, note);
+          isSaved = true;
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('Vous ne pouvez pas enregistrer des données vides.')),
+        );
+        return;
       }
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Données enregistrées avec succès')),
-    );
+    if (isSaved) {
+      // Ne montrer le message de succès que si au moins une donnée a été enregistrée
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Données enregistrées avec succès')),
+      );
+    }
+  }
+
+  Future<bool> _showReplaceDialog() async {
+    return await showDialog(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: Text('Confirmation'),
+              content: Text(
+                  'La parcelle ainsi que la notation existent déjà en base, voulez-vous la remplacer ?'),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('Non'),
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                ),
+                TextButton(
+                  child: Text('Oui'),
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                ),
+              ],
+            );
+          },
+        ) ??
+        false; // Retourne false si l'utilisateur ferme la boîte de dialogue
+  }
+
+  Future<void> _addObservation(
+      String parcelleId, String notation, String note) async {
+    await FirebaseFirestore.instance.collection('Observations').add({
+      'Date_observation': Timestamp.now(),
+      'Observateur':
+          FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
+      'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
+      'Note': note,
+      'Notations': notation,
+    });
   }
 
   @override
