@@ -21,6 +21,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late MotionTabBarController _tabController;
   late bool isAdmin;
 
+  late CollectionReference<Map<String, dynamic>>
+      parcellesCollection; // Déclaration de la collection de parcelles
+  late CollectionReference<Map<String, dynamic>>
+      notationsCollection; // Déclaration de la collection de notations
+
   @override
   void initState() {
     super.initState();
@@ -29,6 +34,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             'faris.maisonneuve@wanadoo.fr';
     _tabController =
         MotionTabBarController(length: isAdmin ? 4 : 4, vsync: this);
+    parcellesCollection = FirebaseFirestore.instance.collection(
+        'Parcelles'); // Initialisation de la collection de parcelles
+    notationsCollection = FirebaseFirestore.instance.collection(
+        'Notations'); // Initialisation de la collection de notations
   }
 
   @override
@@ -276,6 +285,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     final TextEditingController _numeroParcelleController =
         TextEditingController();
     final TextEditingController _lieuIdController = TextEditingController();
+    final TextEditingController _notationsController =
+        TextEditingController(); // Contrôleur pour les notations
 
     showDialog(
       context: context,
@@ -304,6 +315,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                     labelText: 'ID du lieu référencé',
                   ),
                 ),
+                TextField(
+                  controller: _notationsController,
+                  decoration: InputDecoration(
+                    labelText: 'Notations (séparées par des virgules)',
+                  ),
+                ),
               ],
             ),
           ),
@@ -321,6 +338,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 final int? numeroParcelle =
                     int.tryParse(_numeroParcelleController.text);
                 final String lieuId = _lieuIdController.text.trim();
+                final String notations = _notationsController
+                    .text; // Obtenez les valeurs de notation
 
                 if (parcelleId.isNotEmpty &&
                     numeroParcelle != null &&
@@ -343,6 +362,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         'Numero_parcelle': numeroParcelle,
                         'Lieu': FirebaseFirestore.instance.doc('Lieux/$lieuId'),
                       }).then((value) {
+                        // Créez le document de notation correspondant
+                        Map<String, dynamic> notationData = {
+                          'Parcelle': parcellesCollection.doc(parcelleId),
+                        };
+                        // Ajoutez chaque champ de notation avec sa valeur
+                        notations.split(',').forEach((notation) {
+                          notationData[notation.trim()] = '';
+                        });
+                        // Enregistrez le document de notation dans la collection de notations
+                        notationsCollection.doc(parcelleId).set(notationData);
                         Navigator.of(context).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
