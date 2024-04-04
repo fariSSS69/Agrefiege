@@ -53,8 +53,12 @@ class _DashboardPageState extends State<DashboardPage> {
           final observationData = doc.data();
           return {
             ...observationData,
-            'Parcelle': {'reference': observationData['Parcelle'], 'numero': parcelleData['Numero_parcelle']},
-            'Date_observation': DateTime.fromMillisecondsSinceEpoch(observationData['Date_observation'].millisecondsSinceEpoch),
+            'Parcelle': {
+              'reference': observationData['Parcelle'],
+              'numero': parcelleData['Numero_parcelle']
+            },
+            'Date_observation': DateTime.fromMillisecondsSinceEpoch(
+                observationData['Date_observation'].millisecondsSinceEpoch),
           };
         }).toList();
         allObservations.addAll(observations);
@@ -66,7 +70,8 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
-  void _sort<T>(Comparable<T> getField(Map<String, dynamic> observation), int columnIndex, bool ascending) {
+  void _sort<T>(Comparable<T> getField(Map<String, dynamic> observation),
+      int columnIndex, bool ascending) {
     _observations.sort((a, b) {
       final aValue = getField(a);
       final bValue = getField(b);
@@ -98,27 +103,42 @@ class _DashboardPageState extends State<DashboardPage> {
                       columns: [
                         DataColumn(
                           label: Text('Date'),
-                          onSort: (columnIndex, ascending) => _sort<DateTime>((observation) => observation['Date_observation'], columnIndex, ascending),
+                          onSort: (columnIndex, ascending) => _sort<DateTime>(
+                              (observation) => observation['Date_observation'],
+                              columnIndex,
+                              ascending),
                         ),
                         DataColumn(
                           label: Text('Parcelle'),
-                          onSort: (columnIndex, ascending) => _sort<int>((observation) => observation['Parcelle']['numero'], columnIndex, ascending),
+                          onSort: (columnIndex, ascending) => _sort<int>(
+                              (observation) =>
+                                  observation['Parcelle']['numero'],
+                              columnIndex,
+                              ascending),
                         ),
                         DataColumn(
                           label: Text('Notation'),
-                          onSort: (columnIndex, ascending) => _sort<String>((observation) => observation['Notations'], columnIndex, ascending),
+                          onSort: (columnIndex, ascending) => _sort<String>(
+                              (observation) => observation['Notations'],
+                              columnIndex,
+                              ascending),
                         ),
                         DataColumn(
                           label: Text('Note'),
-                          onSort: (columnIndex, ascending) => _sort<String>((observation) => observation['Note'], columnIndex, ascending),
+                          onSort: (columnIndex, ascending) => _sort<String>(
+                              (observation) => observation['Note'],
+                              columnIndex,
+                              ascending),
                         ),
                       ],
                       rows: _observations
                           .map(
                             (observation) => DataRow(
                               cells: [
-                                DataCell(Text(DateFormat('dd/MM/yyyy HH:mm').format(observation['Date_observation']))),
-                                DataCell(Text(observation['Parcelle']['numero'].toString())),
+                                DataCell(Text(DateFormat('dd/MM/yyyy HH:mm')
+                                    .format(observation['Date_observation']))),
+                                DataCell(Text(observation['Parcelle']['numero']
+                                    .toString())),
                                 DataCell(Text(observation['Notations'])),
                                 DataCell(Text(observation['Note'])),
                               ],
@@ -127,6 +147,12 @@ class _DashboardPageState extends State<DashboardPage> {
                           .toList(),
                     ),
                   ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          _getUserData(); // Actualiser les données lorsque le bouton est pressé
+        },
+        child: Icon(Icons.refresh), // Icône d'actualisation
       ),
     );
   }
