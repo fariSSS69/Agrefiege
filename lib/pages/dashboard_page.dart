@@ -25,49 +25,89 @@ class _DashboardPageState extends State<DashboardPage> {
   Future<void> _getUserData() async {
     FirebaseAuth auth = FirebaseAuth.instance;
     _user = auth.currentUser!;
-    final userSnapshot = await FirebaseFirestore.instance
-        .collection('Observateurs')
-        .where('email', isEqualTo: _user.email)
-        .get();
 
-    final userSnapshotData = userSnapshot.docs.first.data();
-    final lieux = userSnapshotData['Lieux'];
+    if (_user.email == 'faris.maisonneuve@wanadoo.fr') {
+      List<Map<String, dynamic>> allObservations = [];
 
-    List<Map<String, dynamic>> allObservations = [];
+      final lieuxSnapshot = await FirebaseFirestore.instance.collection('Lieux').get();
 
-    for (final lieuRef in lieux) {
-      final lieuSnapshot = await lieuRef.get();
-      final parcellesSnapshot = await FirebaseFirestore.instance
-          .collection('Parcelles')
-          .where('Lieu', isEqualTo: lieuSnapshot.reference)
-          .get();
-
-      for (final parcelleDoc in parcellesSnapshot.docs) {
-        final parcelleData = parcelleDoc.data();
-        final observationsSnapshot = await FirebaseFirestore.instance
-            .collection('Observations')
-            .where('Parcelle', isEqualTo: parcelleDoc.reference)
+      for (final lieuDoc in lieuxSnapshot.docs) {
+        final parcellesSnapshot = await FirebaseFirestore.instance
+            .collection('Parcelles')
+            .where('Lieu', isEqualTo: lieuDoc.reference)
             .get();
 
-        final observations = observationsSnapshot.docs.map((doc) {
-          final observationData = doc.data();
-          return {
-            ...observationData,
-            'Parcelle': {
-              'reference': observationData['Parcelle'],
-              'numero': parcelleData['Numero_parcelle']
-            },
-            'Date_observation': DateTime.fromMillisecondsSinceEpoch(
-                observationData['Date_observation'].millisecondsSinceEpoch),
-          };
-        }).toList();
-        allObservations.addAll(observations);
-      }
-    }
+        for (final parcelleDoc in parcellesSnapshot.docs) {
+          final parcelleData = parcelleDoc.data();
+          final observationsSnapshot = await FirebaseFirestore.instance
+              .collection('Observations')
+              .where('Parcelle', isEqualTo: parcelleDoc.reference)
+              .get();
 
-    setState(() {
-      _observations = allObservations;
-    });
+          final observations = observationsSnapshot.docs.map((doc) {
+            final observationData = doc.data();
+            return {
+              ...observationData,
+              'Parcelle': {
+                'reference': observationData['Parcelle'],
+                'numero': parcelleData['Numero_parcelle']
+              },
+              'Date_observation': DateTime.fromMillisecondsSinceEpoch(
+                  observationData['Date_observation'].millisecondsSinceEpoch),
+            };
+          }).toList();
+          allObservations.addAll(observations);
+        }
+      }
+
+      setState(() {
+        _observations = allObservations;
+      });
+    } else {
+      final userSnapshot = await FirebaseFirestore.instance
+          .collection('Observateurs')
+          .where('email', isEqualTo: _user.email)
+          .get();
+
+      final userSnapshotData = userSnapshot.docs.first.data();
+      final lieux = userSnapshotData['Lieux'];
+
+      List<Map<String, dynamic>> allObservations = [];
+
+      for (final lieuRef in lieux) {
+        final lieuSnapshot = await lieuRef.get();
+        final parcellesSnapshot = await FirebaseFirestore.instance
+            .collection('Parcelles')
+            .where('Lieu', isEqualTo: lieuSnapshot.reference)
+            .get();
+
+        for (final parcelleDoc in parcellesSnapshot.docs) {
+          final parcelleData = parcelleDoc.data();
+          final observationsSnapshot = await FirebaseFirestore.instance
+              .collection('Observations')
+              .where('Parcelle', isEqualTo: parcelleDoc.reference)
+              .get();
+
+          final observations = observationsSnapshot.docs.map((doc) {
+            final observationData = doc.data();
+            return {
+              ...observationData,
+              'Parcelle': {
+                'reference': observationData['Parcelle'],
+                'numero': parcelleData['Numero_parcelle']
+              },
+              'Date_observation': DateTime.fromMillisecondsSinceEpoch(
+                  observationData['Date_observation'].millisecondsSinceEpoch),
+            };
+          }).toList();
+          allObservations.addAll(observations);
+        }
+      }
+
+      setState(() {
+        _observations = allObservations;
+      });
+    }
   }
 
   void _sort<T>(Comparable<T> getField(Map<String, dynamic> observation),
