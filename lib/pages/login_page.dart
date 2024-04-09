@@ -105,68 +105,19 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
-              // TODO Google sign in implementation
-              // SizedBox(height: 10,),
-              // GestureDetector(
-              //   onTap: () {
-              //     _signInWithGoogle();
-
-              //   },
-              //   child: Container(
-              //     width: double.infinity,
-              //     height: 45,
-              //     decoration: BoxDecoration(
-              //       color: Colors.red,
-              //       borderRadius: BorderRadius.circular(10),
-              //     ),
-              //     child: Center(
-              //       child: Row(
-              //         mainAxisAlignment: MainAxisAlignment.center,
-              //         children: [
-              //           Icon(FontAwesomeIcons.google, color: Colors.white,),
-              //           SizedBox(width: 5,),
-              //           Text(
-              //             "Sign in with Google",
-              //             style: TextStyle(
-              //               color: Colors.white,
-              //               fontWeight: FontWeight.bold,
-              //             ),
-              //           ),
-              //         ],
-              //       ),
-              //     ),
-              //   ),
-              // ),
-
-              // SizedBox(
-              //   height: 20,
-              // ),
-              // TODO Sign up implementation
-              // Row(
-              //   mainAxisAlignment: MainAxisAlignment.center,
-              //   children: [
-              //     Text("Don't have an account?"),
-              //     SizedBox(
-              //       width: 5,
-              //     ),
-              //     GestureDetector(
-              //       onTap: () {
-              //         Navigator.pushAndRemoveUntil(
-              //           context,
-              //           MaterialPageRoute(builder: (context) => SignUpPage()),
-              //               (route) => false,
-              //         );
-              //       },
-              //       child: Text(
-              //         "Sign Up",
-              //         style: TextStyle(
-              //           color: Colors.blue,
-              //           fontWeight: FontWeight.bold,
-              //         ),
-              //       ),
-              //     ),
-              //   ],
-              // ),
+              SizedBox(height: 10),
+              GestureDetector(
+                onTap: () {
+                  _resetPassword();
+                },
+                child: Text(
+                  "Mot de passe oublié ?",
+                  style: TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
             ],
           ),
         ),
@@ -209,27 +160,14 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  _signInWithGoogle() async {
-    final GoogleSignIn _googleSignIn = GoogleSignIn();
+  void _resetPassword() async {
+    String email = _emailController.text.trim();
 
     try {
-      final GoogleSignInAccount? googleSignInAccount =
-          await _googleSignIn.signIn();
-
-      if (googleSignInAccount != null) {
-        final GoogleSignInAuthentication googleSignInAuthentication =
-            await googleSignInAccount.authentication;
-
-        final AuthCredential credential = GoogleAuthProvider.credential(
-          idToken: googleSignInAuthentication.idToken,
-          accessToken: googleSignInAuthentication.accessToken,
-        );
-
-        await _firebaseAuth.signInWithCredential(credential);
-        Navigator.pushNamed(context as BuildContext, "/home");
-      }
+      await _firebaseAuth.sendPasswordResetEmail(email: email);
+      showToast(message: "Email de réinitialisation envoyé à $email");
     } catch (e) {
-      showToast(message: "Une erreur est survenue $e");
+      showToast(message: "Une erreur est survenue: $e");
     }
   }
 }
