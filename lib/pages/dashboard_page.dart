@@ -12,7 +12,7 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   late User _user;
-  late List<Map<String, dynamic>> _observations;
+  List<Map<String, dynamic>> _observations = []; 
   bool _isAscending = true;
   int _sortColumnIndex = 0;
 
