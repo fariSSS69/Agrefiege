@@ -13,6 +13,7 @@ class _ObservationPageState extends State<ObservationPage> {
   List<Map<String, dynamic>> _rows = [];
   bool _isLoading = true;
   List<DropdownMenuItem<String>>? _lieuxDropdownItems;
+  bool _hasUnsavedData = false;
 
   @override
   void initState() {
@@ -59,12 +60,16 @@ class _ObservationPageState extends State<ObservationPage> {
         'notation': null,
         'Note': TextEditingController(),
       });
+      _hasUnsavedData = true;
     });
   }
 
   void _deleteRow(int index) {
     setState(() {
       _rows.removeAt(index);
+      if (_rows.isEmpty) {
+        _hasUnsavedData = false;
+      }
     });
   }
 
@@ -126,6 +131,10 @@ class _ObservationPageState extends State<ObservationPage> {
     }
 
     if (isSaved) {
+      setState(() {
+        _rows.clear();
+        _hasUnsavedData = false;
+      });
       // Ne montrer le message de succès que si au moins une donnée a été enregistrée
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Données enregistrées avec succès')),
@@ -302,6 +311,41 @@ class _ObservationPageState extends State<ObservationPage> {
     return Future<void>.value();
   }
 
+  Future<void> _showChangeLocationConfirmationDialog(String newLocation) async {
+    bool? shouldChangeLocation = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Confirmation'),
+          content: Text(
+              'Vous êtes sur le point de quitter l\'observation en cours. Toutes les données non sauvegardées seront perdues. Voulez-vous quitter l\'observation ?'),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Non'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: Text('Oui'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldChangeLocation ?? false) {
+      setState(() {
+        _lieuId = newLocation;
+        _rows.clear();
+        _hasUnsavedData = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -320,9 +364,13 @@ class _ObservationPageState extends State<ObservationPage> {
                         items: _lieuxDropdownItems,
                         hint: Text('Sélectionnez un lieu'),
                         onChanged: (value) {
-                          setState(() {
-                            _lieuId = value;
-                          });
+                          if (_hasUnsavedData) {
+                            _showChangeLocationConfirmationDialog(value!);
+                          } else {
+                            setState(() {
+                              _lieuId = value;
+                            });
+                          }
                         },
                       ),
                     ),
