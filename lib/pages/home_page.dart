@@ -402,127 +402,120 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _createNewObservateur(BuildContext context) {
-    final TextEditingController _observateurIdController =
-        TextEditingController();
-    final TextEditingController _nomController = TextEditingController();
-    final TextEditingController _prenomController = TextEditingController();
-    final TextEditingController _emailController = TextEditingController();
-    final TextEditingController _lieuIdController = TextEditingController();
+  final TextEditingController _observateurIdController =
+      TextEditingController();
+  final TextEditingController _nomController = TextEditingController();
+  final TextEditingController _prenomController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _lieuIdController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Créer un nouvel observateur'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                TextField(
-                  controller: _observateurIdController,
-                  decoration: InputDecoration(
-                    labelText: 'ID de l\'observateur (custom)',
-                  ),
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: Text('Créer un nouvel observateur'),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              TextField(
+                controller: _observateurIdController,
+                decoration: InputDecoration(
+                  labelText: 'ID de l\'observateur (custom)',
                 ),
-                TextField(
-                  controller: _nomController,
-                  decoration: InputDecoration(
-                    labelText: 'Nom',
-                  ),
+              ),
+              TextField(
+                controller: _nomController,
+                decoration: InputDecoration(
+                  labelText: 'Nom',
                 ),
-                TextField(
-                  controller: _prenomController,
-                  decoration: InputDecoration(
-                    labelText: 'Prénom',
-                  ),
+              ),
+              TextField(
+                controller: _prenomController,
+                decoration: InputDecoration(
+                  labelText: 'Prénom',
                 ),
-                TextField(
-                  controller: _emailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                  ),
+              ),
+              TextField(
+                controller: _emailController,
+                decoration: InputDecoration(
+                  labelText: 'Email',
                 ),
-                TextField(
-                  controller: _lieuIdController,
-                  decoration: InputDecoration(
-                    labelText: 'ID du lieu référencé',
-                  ),
+              ),
+              TextField(
+                controller: _lieuIdController,
+                decoration: InputDecoration(
+                  labelText: 'ID du lieu référencé',
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Annuler'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text('Créer'),
-              onPressed: () {
-                final String observateurId =
-                    _observateurIdController.text.trim();
-                final String nom = _nomController.text.trim();
-                final String prenom = _prenomController.text.trim();
-                final String email = _emailController.text.trim();
-                final String lieuId = _lieuIdController.text.trim();
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: Text('Annuler'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          TextButton(
+            child: Text('Créer'),
+            onPressed: () async {
+              final String observateurId =
+                  _observateurIdController.text.trim();
+              final String nom = _nomController.text.trim();
+              final String prenom = _prenomController.text.trim();
+              final String email = _emailController.text.trim();
+              final String lieuId = _lieuIdController.text.trim();
 
-                if (observateurId.isNotEmpty &&
-                    nom.isNotEmpty &&
-                    prenom.isNotEmpty &&
-                    email.isNotEmpty &&
-                    lieuId.isNotEmpty) {
-                  FirebaseFirestore.instance
+              if (observateurId.isNotEmpty &&
+                  nom.isNotEmpty &&
+                  prenom.isNotEmpty &&
+                  email.isNotEmpty &&
+                  lieuId.isNotEmpty) {
+                try {
+                  // Créer l'utilisateur dans Firebase Authentication
+                  await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                      email: email, password: 'password');
+
+                  // Ajouter l'utilisateur dans Firestore
+                  await FirebaseFirestore.instance
                       .collection('Observateurs')
                       .doc(observateurId)
-                      .get()
-                      .then((docSnapshot) {
-                    if (docSnapshot.exists) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content:
-                                Text('L\'ID de l\'observateur existe déjà')),
-                      );
-                    } else {
+                      .set({
+                    'Nom': nom,
+                    'Prenom': prenom,
+                    'email': email,
+                    'Lieux': [
                       FirebaseFirestore.instance
-                          .collection('Observateurs')
-                          .doc(observateurId)
-                          .set({
-                        'Nom': nom,
-                        'Prenom': prenom,
-                        'email': email,
-                        'Lieux': [
-                          FirebaseFirestore.instance
-                              .collection('Lieux')
-                              .doc(lieuId)
-                        ],
-                      }).then((value) {
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text('Observateur créé avec succès')),
-                        );
-                      }).catchError((error) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  'Erreur lors de la création de l\'observateur: $error')),
-                        );
-                      });
-                    }
+                          .collection('Lieux')
+                          .doc(lieuId)
+                    ],
                   });
-                } else {
+
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                        content: Text('Observateur créé avec succès')),
+                  );
+                } catch (error) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                         content: Text(
-                            'Veuillez remplir tous les champs avec des valeurs valides')),
+                            'Erreur lors de la création de l\'observateur: $error')),
                   );
                 }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text(
+                          'Veuillez remplir tous les champs avec des valeurs valides')),
+                );
+              }
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
 }
