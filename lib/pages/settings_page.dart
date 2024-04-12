@@ -17,8 +17,7 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _showSignOutConfirmationDialog() async {
     return showDialog<void>(
       context: context,
-      barrierDismissible:
-          true, // L'utilisateur peut fermer la boîte de dialogue en cliquant à l'extérieur
+      barrierDismissible: true,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
           title: const Text(
@@ -27,19 +26,25 @@ class _SettingsPageState extends State<SettingsPage> {
               fontWeight: FontWeight.bold,
             ),
           ),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Voulez-vous vraiment vous déconnecter ?'),
-              ],
-            ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Container(
+                width: double.infinity,
+                child: const Text(
+                  'Voulez-vous vraiment vous déconnecter ?',
+                ),
+              ),
+            ],
           ),
-          actionsPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          actionsPadding:
+              const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           actionsAlignment: MainAxisAlignment.spaceBetween,
           actions: <Widget>[
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white, backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                backgroundColor: Colors.redAccent,
               ),
               child: const Text('Se déconnecter'),
               onPressed: () {
@@ -49,7 +54,8 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.black, backgroundColor: Colors.grey.shade200,
+                foregroundColor: Colors.black,
+                backgroundColor: Colors.grey.shade200,
               ),
               child: const Text('Annuler'),
               onPressed: () {
@@ -68,16 +74,16 @@ class _SettingsPageState extends State<SettingsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Column(
-        children: <Widget>[
-          SizedBox(
-            height: 50,
-            child: Container(
+      body: Padding(
+        padding: const EdgeInsets.only(top: 50),
+        child: Column(
+          children: <Widget>[
+            Container(
+              height: 50,
               color: Colors.red,
               child: Center(
                 child: InkWell(
-                  onTap:
-                      _showSignOutConfirmationDialog, // Affiche la boîte de dialogue de confirmation
+                  onTap: _showSignOutConfirmationDialog,
                   child: const Text(
                     'Se déconnecter',
                     style: TextStyle(
@@ -88,13 +94,11 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
               ),
             ),
-          ),
-          const Expanded(
-            child: Center(
-                // Contenu de la page Paramètre
-                ),
-          ),
-        ],
+            const Expanded(
+              child: Center(),
+            ),
+          ],
+        ),
       ),
     );
   }
