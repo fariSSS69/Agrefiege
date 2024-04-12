@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+  const DashboardPage({Key? key}) : super(key: key);
 
   @override
   _DashboardPageState createState() => _DashboardPageState();
@@ -12,7 +12,7 @@ class DashboardPage extends StatefulWidget {
 
 class _DashboardPageState extends State<DashboardPage> {
   late User _user;
-  List<Map<String, dynamic>> _observations = []; 
+  List<Map<String, dynamic>> _observations = [];
   bool _isAscending = true;
   int _sortColumnIndex = 0;
 
@@ -29,7 +29,8 @@ class _DashboardPageState extends State<DashboardPage> {
     if (_user.email == 'faris.maisonneuve@wanadoo.fr') {
       List<Map<String, dynamic>> allObservations = [];
 
-      final lieuxSnapshot = await FirebaseFirestore.instance.collection('Lieux').get();
+      final lieuxSnapshot =
+          await FirebaseFirestore.instance.collection('Lieux').get();
 
       for (final lieuDoc in lieuxSnapshot.docs) {
         final parcellesSnapshot = await FirebaseFirestore.instance
@@ -110,8 +111,10 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void _sort<T>(Comparable<T> Function(Map<String, dynamic> observation) getField,
-      int columnIndex, bool ascending) {
+  void _sort<T>(
+      Comparable<T> Function(Map<String, dynamic> observation) getField,
+      int columnIndex,
+      bool ascending) {
     _observations.sort((a, b) {
       final aValue = getField(a);
       final bValue = getField(b);
@@ -137,54 +140,60 @@ class _DashboardPageState extends State<DashboardPage> {
                 ? const Text('Aucune observation trouvée.')
                 : SingleChildScrollView(
                     scrollDirection: Axis.vertical,
-                    child: DataTable(
-                      sortColumnIndex: _sortColumnIndex,
-                      sortAscending: _isAscending,
-                      columns: [
-                        DataColumn(
-                          label: const Text('Date'),
-                          onSort: (columnIndex, ascending) => _sort<DateTime>(
-                              (observation) => observation['Date_observation'],
-                              columnIndex,
-                              ascending),
-                        ),
-                        DataColumn(
-                          label: const Text('Parcelle'),
-                          onSort: (columnIndex, ascending) => _sort<int>(
-                              (observation) =>
-                                  observation['Parcelle']['numero'],
-                              columnIndex,
-                              ascending),
-                        ),
-                        DataColumn(
-                          label: const Text('Notation'),
-                          onSort: (columnIndex, ascending) => _sort<String>(
-                              (observation) => observation['Notations'],
-                              columnIndex,
-                              ascending),
-                        ),
-                        DataColumn(
-                          label: const Text('Note'),
-                          onSort: (columnIndex, ascending) => _sort<String>(
-                              (observation) => observation['Note'],
-                              columnIndex,
-                              ascending),
-                        ),
-                      ],
-                      rows: _observations
-                          .map(
-                            (observation) => DataRow(
-                              cells: [
-                                DataCell(Text(DateFormat('dd/MM/yyyy HH:mm')
-                                    .format(observation['Date_observation']))),
-                                DataCell(Text(observation['Parcelle']['numero']
-                                    .toString())),
-                                DataCell(Text(observation['Notations'])),
-                                DataCell(Text(observation['Note'])),
-                              ],
-                            ),
-                          )
-                          .toList(),
+                    child: FittedBox(
+                      fit: BoxFit.fitWidth,
+                      child: DataTable(
+                        sortColumnIndex: _sortColumnIndex,
+                        sortAscending: _isAscending,
+                        columns: [
+                          DataColumn(
+                            label: const Text('Date'),
+                            onSort: (columnIndex, ascending) => _sort<DateTime>(
+                                (observation) =>
+                                    observation['Date_observation'],
+                                columnIndex,
+                                ascending),
+                          ),
+                          DataColumn(
+                            label: const Text('Parcelle'),
+                            onSort: (columnIndex, ascending) => _sort<int>(
+                                (observation) =>
+                                    observation['Parcelle']['numero'],
+                                columnIndex,
+                                ascending),
+                          ),
+                          DataColumn(
+                            label: const Text('Notation'),
+                            onSort: (columnIndex, ascending) => _sort<String>(
+                                (observation) => observation['Notations'],
+                                columnIndex,
+                                ascending),
+                          ),
+                          DataColumn(
+                            label: const Text('Note'),
+                            onSort: (columnIndex, ascending) => _sort<String>(
+                                (observation) => observation['Note'],
+                                columnIndex,
+                                ascending),
+                          ),
+                        ],
+                        rows: _observations
+                            .map(
+                              (observation) => DataRow(
+                                cells: [
+                                  DataCell(Text(DateFormat('dd/MM/yyyy HH:mm')
+                                      .format(
+                                          observation['Date_observation']))),
+                                  DataCell(Text(observation['Parcelle']
+                                          ['numero']
+                                      .toString())),
+                                  DataCell(Text(observation['Notations'])),
+                                  DataCell(Text(observation['Note'])),
+                                ],
+                              ),
+                            )
+                            .toList(),
+                      ),
                     ),
                   ),
       ),
