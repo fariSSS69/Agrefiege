@@ -391,7 +391,8 @@ class _ObservationPageState extends State<ObservationPage> {
                         return Text('Error: ${snapshot.error}');
                       } else if (!snapshot.hasData ||
                           snapshot.data!.docs.isEmpty) {
-                        return const Text('Aucune parcelle disponible pour ce lieu');
+                        return const Text(
+                            'Aucune parcelle disponible pour ce lieu');
                       } else {
                         List<String> parcelles = snapshot.data!.docs
                             .map((doc) => doc['Numero_parcelle'].toString())
@@ -541,9 +542,10 @@ class _ObservationPageState extends State<ObservationPage> {
                                             child: TextField(
                                               controller: row['Note'],
                                               decoration: const InputDecoration(
-                                                hintText:
-                                                    'Entrez vos notes ici...',
+                                                hintText: 'Notes ici...',
                                                 border: OutlineInputBorder(),
+                                                hintStyle:
+                                                    TextStyle(fontSize: 13),
                                               ),
                                               maxLines: 1,
                                             ),
@@ -563,52 +565,57 @@ class _ObservationPageState extends State<ObservationPage> {
                                 ),
                               ),
                               Container(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        foregroundColor: Colors
-                                            .black, backgroundColor: Colors
-                                            .white, // Couleur du texte lorsque le bouton est pressé
+                                    Expanded(
+                                      child: Padding(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical:
-                                                12), // Rembourrage du bouton
-                                        textStyle: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight
-                                                .bold), // Style du texte du bouton
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                              0), // Pas de bord arrondi
+                                            horizontal: 8),
+                                        child: ElevatedButton(
+                                          onPressed: _addRow,
+                                          child:
+                                              const Text('Ajouter une ligne'),
+                                          style: ElevatedButton.styleFrom(
+                                            foregroundColor: Colors.black,
+                                            backgroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16, vertical: 12),
+                                            textStyle: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold),
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(0)),
+                                          ),
                                         ),
                                       ),
-                                      onPressed: _addRow,
-                                      child: const Text('Ajouter une ligne'),
                                     ),
                                     const SizedBox(width: 16),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                        foregroundColor: Colors
-                                            .black, backgroundColor: Colors
-                                            .white, // Couleur du texte lorsque le bouton est pressé
+                                    Expanded(
+                                      child: Padding(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                            vertical:
-                                                12), // Rembourrage du bouton
-                                        textStyle: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight
-                                                .bold), // Style du texte du bouton
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(
-                                              0), // Pas de bord arrondi
+                                            horizontal: 8),
+                                        child: ElevatedButton(
+                                          onPressed: _saveData,
+                                          child: const Text(
+                                              'Enregistrer les données'),
+                                          style: ElevatedButton.styleFrom(
+                                            foregroundColor: Colors.black,
+                                            backgroundColor: Colors.white,
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 16, vertical: 12),
+                                            textStyle: const TextStyle(
+                                                fontSize: 18,
+                                                fontWeight: FontWeight.bold),
+                                            shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(0)),
+                                          ),
                                         ),
                                       ),
-                                      onPressed: _saveData,
-                                      child: const Text('Enregistrer les données'),
                                     ),
                                   ],
                                 ),
