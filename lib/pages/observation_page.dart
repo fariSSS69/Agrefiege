@@ -568,7 +568,6 @@ class _ObservationPageState extends State<ObservationPage> {
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 16),
                                 child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Expanded(
                                       child: Padding(
@@ -579,8 +578,6 @@ class _ObservationPageState extends State<ObservationPage> {
                                           child:
                                               const Text('Ajouter une ligne'),
                                           style: ElevatedButton.styleFrom(
-                                            foregroundColor: Colors.black,
-                                            backgroundColor: Colors.white,
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 16, vertical: 12),
                                             textStyle: const TextStyle(
@@ -603,8 +600,6 @@ class _ObservationPageState extends State<ObservationPage> {
                                           child: const Text(
                                               'Enregistrer les données'),
                                           style: ElevatedButton.styleFrom(
-                                            foregroundColor: Colors.black,
-                                            backgroundColor: Colors.white,
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 16, vertical: 12),
                                             textStyle: const TextStyle(
