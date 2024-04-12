@@ -197,11 +197,14 @@ class _DashboardPageState extends State<DashboardPage> {
                     ),
                   ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          _getUserData(); // Actualiser les données lorsque le bouton est pressé
-        },
-        child: const Icon(Icons.refresh), // Icône d'actualisation
+      appBar: AppBar(
+        centerTitle: true, // Centrer le titre (ou l'icône) de l'AppBar
+        title: IconButton(
+          onPressed: () {
+            _getUserData(); // Actualiser les données lorsque l'icône est pressée
+          },
+          icon: Icon(Icons.refresh), // Icône de rafraîchissement
+        ),
       ),
     );
   }
