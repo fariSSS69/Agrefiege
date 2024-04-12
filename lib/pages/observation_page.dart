@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ObservationPage extends StatefulWidget {
+  const ObservationPage({super.key});
+
   @override
   _ObservationPageState createState() => _ObservationPageState();
 }
@@ -10,7 +12,7 @@ class ObservationPage extends StatefulWidget {
 class _ObservationPageState extends State<ObservationPage> {
   late User _user;
   String? _lieuId;
-  List<Map<String, dynamic>> _rows = [];
+  final List<Map<String, dynamic>> _rows = [];
   bool _isLoading = true;
   List<DropdownMenuItem<String>>? _lieuxDropdownItems;
   bool _hasUnsavedData = false;
@@ -84,7 +86,7 @@ class _ObservationPageState extends State<ObservationPage> {
         .get()
         .then((querySnapshot) => querySnapshot.docs.first);
 
-    return notationDoc.data() as Map<String, dynamic>;
+    return notationDoc.data();
   }
 
   Future<void> _saveData() async {
@@ -122,7 +124,7 @@ class _ObservationPageState extends State<ObservationPage> {
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+          const SnackBar(
               content:
                   Text('Vous ne pouvez pas enregistrer des données vides.')),
         );
@@ -137,7 +139,7 @@ class _ObservationPageState extends State<ObservationPage> {
       });
       // Ne montrer le message de succès que si au moins une donnée a été enregistrée
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Données enregistrées avec succès')),
+        const SnackBar(content: Text('Données enregistrées avec succès')),
       );
     }
   }
@@ -147,18 +149,18 @@ class _ObservationPageState extends State<ObservationPage> {
           context: context,
           builder: (BuildContext context) {
             return AlertDialog(
-              title: Text('Confirmation'),
-              content: Text(
+              title: const Text('Confirmation'),
+              content: const Text(
                   'La parcelle ainsi que la notation existent déjà en base, voulez-vous la remplacer ?'),
               actions: <Widget>[
                 TextButton(
-                  child: Text('Non'),
+                  child: const Text('Non'),
                   onPressed: () {
                     Navigator.of(context).pop(false);
                   },
                 ),
                 TextButton(
-                  child: Text('Oui'),
+                  child: const Text('Oui'),
                   onPressed: () {
                     Navigator.of(context).pop(true);
                   },
@@ -183,48 +185,48 @@ class _ObservationPageState extends State<ObservationPage> {
   }
 
   Future<void> _createNewObservateur(BuildContext context) {
-    final TextEditingController _observateurIdController =
+    final TextEditingController observateurIdController =
         TextEditingController();
-    final TextEditingController _nomController = TextEditingController();
-    final TextEditingController _prenomController = TextEditingController();
-    final TextEditingController _emailController = TextEditingController();
-    final TextEditingController _lieuIdController = TextEditingController();
+    final TextEditingController nomController = TextEditingController();
+    final TextEditingController prenomController = TextEditingController();
+    final TextEditingController emailController = TextEditingController();
+    final TextEditingController lieuIdController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Créer un nouvel observateur'),
+          title: const Text('Créer un nouvel observateur'),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
                 TextField(
-                  controller: _observateurIdController,
-                  decoration: InputDecoration(
+                  controller: observateurIdController,
+                  decoration: const InputDecoration(
                     labelText: 'ID de l\'observateur (custom)',
                   ),
                 ),
                 TextField(
-                  controller: _nomController,
-                  decoration: InputDecoration(
+                  controller: nomController,
+                  decoration: const InputDecoration(
                     labelText: 'Nom',
                   ),
                 ),
                 TextField(
-                  controller: _prenomController,
-                  decoration: InputDecoration(
+                  controller: prenomController,
+                  decoration: const InputDecoration(
                     labelText: 'Prénom',
                   ),
                 ),
                 TextField(
-                  controller: _emailController,
-                  decoration: InputDecoration(
+                  controller: emailController,
+                  decoration: const InputDecoration(
                     labelText: 'Email',
                   ),
                 ),
                 TextField(
-                  controller: _lieuIdController,
-                  decoration: InputDecoration(
+                  controller: lieuIdController,
+                  decoration: const InputDecoration(
                     labelText: 'ID du lieu référencé',
                   ),
                 ),
@@ -233,20 +235,20 @@ class _ObservationPageState extends State<ObservationPage> {
           ),
           actions: <Widget>[
             TextButton(
-              child: Text('Annuler'),
+              child: const Text('Annuler'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: Text('Créer'),
+              child: const Text('Créer'),
               onPressed: () {
                 final String observateurId =
-                    _observateurIdController.text.trim();
-                final String nom = _nomController.text.trim();
-                final String prenom = _prenomController.text.trim();
-                final String email = _emailController.text.trim();
-                final String lieuId = _lieuIdController.text.trim();
+                    observateurIdController.text.trim();
+                final String nom = nomController.text.trim();
+                final String prenom = prenomController.text.trim();
+                final String email = emailController.text.trim();
+                final String lieuId = lieuIdController.text.trim();
 
                 if (observateurId.isNotEmpty &&
                     nom.isNotEmpty &&
@@ -262,7 +264,7 @@ class _ObservationPageState extends State<ObservationPage> {
                     if (docSnapshot.exists) {
                       // Si l'observateur existe déjà, informer l'utilisateur
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
+                        const SnackBar(
                             content:
                                 Text('L\'ID de l\'observateur existe déjà')),
                       );
@@ -283,7 +285,7 @@ class _ObservationPageState extends State<ObservationPage> {
                       }).then((value) {
                         Navigator.of(context).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                               content: Text('Observateur créé avec succès')),
                         );
                       }).catchError((error) {
@@ -297,7 +299,7 @@ class _ObservationPageState extends State<ObservationPage> {
                   });
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
+                    const SnackBar(
                         content: Text(
                             'Veuillez remplir tous les champs avec des valeurs valides')),
                   );
@@ -316,18 +318,18 @@ class _ObservationPageState extends State<ObservationPage> {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Confirmation'),
-          content: Text(
+          title: const Text('Confirmation'),
+          content: const Text(
               'Vous êtes sur le point de quitter l\'observation en cours. Toutes les données non sauvegardées seront perdues. Voulez-vous quitter l\'observation ?'),
           actions: <Widget>[
             TextButton(
-              child: Text('Non'),
+              child: const Text('Non'),
               onPressed: () {
                 Navigator.of(context).pop(false);
               },
             ),
             TextButton(
-              child: Text('Oui'),
+              child: const Text('Oui'),
               onPressed: () {
                 Navigator.of(context).pop(true);
               },
@@ -351,7 +353,7 @@ class _ObservationPageState extends State<ObservationPage> {
     return Scaffold(
       appBar: AppBar(),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
               child: Column(
                 children: [
@@ -362,7 +364,7 @@ class _ObservationPageState extends State<ObservationPage> {
                         isExpanded: true,
                         value: _lieuId,
                         items: _lieuxDropdownItems,
-                        hint: Text('Sélectionnez un lieu'),
+                        hint: const Text('Sélectionnez un lieu'),
                         onChanged: (value) {
                           if (_hasUnsavedData) {
                             _showChangeLocationConfirmationDialog(value!);
@@ -384,12 +386,12 @@ class _ObservationPageState extends State<ObservationPage> {
                         .get(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return CircularProgressIndicator();
+                        return const CircularProgressIndicator();
                       } else if (snapshot.hasError) {
                         return Text('Error: ${snapshot.error}');
                       } else if (!snapshot.hasData ||
                           snapshot.data!.docs.isEmpty) {
-                        return Text('Aucune parcelle disponible pour ce lieu');
+                        return const Text('Aucune parcelle disponible pour ce lieu');
                       } else {
                         List<String> parcelles = snapshot.data!.docs
                             .map((doc) => doc['Numero_parcelle'].toString())
@@ -398,7 +400,7 @@ class _ObservationPageState extends State<ObservationPage> {
                           child: Column(
                             children: [
                               Container(
-                                padding: EdgeInsets.all(16),
+                                padding: const EdgeInsets.all(16),
                                 decoration: BoxDecoration(
                                   border: Border.all(color: Colors.grey),
                                   borderRadius: BorderRadius.circular(8),
@@ -407,7 +409,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                   children: [
                                     TableRow(
                                       children: [
-                                        TableCell(
+                                        const TableCell(
                                           child: Text(
                                             'Parcelles',
                                             style: TextStyle(
@@ -416,7 +418,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                             ),
                                           ),
                                         ),
-                                        TableCell(
+                                        const TableCell(
                                           child: Text(
                                             'Notations',
                                             style: TextStyle(
@@ -425,7 +427,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                             ),
                                           ),
                                         ),
-                                        TableCell(
+                                        const TableCell(
                                           child: Text(
                                             'Notes',
                                             style: TextStyle(
@@ -482,7 +484,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                                                 .connectionState ==
                                                             ConnectionState
                                                                 .waiting) {
-                                                          return CircularProgressIndicator();
+                                                          return const CircularProgressIndicator();
                                                         } else if (notationSnapshot
                                                             .hasError) {
                                                           return Text(
@@ -493,7 +495,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                                             notationSnapshot
                                                                 .data!
                                                                 .isEmpty) {
-                                                          return Text(
+                                                          return const Text(
                                                               'Aucune notation disponible pour cette parcelle');
                                                         } else {
                                                           var notationData =
@@ -538,7 +540,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                           TableCell(
                                             child: TextField(
                                               controller: row['Note'],
-                                              decoration: InputDecoration(
+                                              decoration: const InputDecoration(
                                                 hintText:
                                                     'Entrez vos notes ici...',
                                                 border: OutlineInputBorder(),
@@ -548,7 +550,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                           ),
                                           TableCell(
                                             child: IconButton(
-                                              icon: Icon(Icons.delete),
+                                              icon: const Icon(Icons.delete),
                                               onPressed: () {
                                                 _deleteRow(_rows.indexOf(row));
                                               },
@@ -556,26 +558,25 @@ class _ObservationPageState extends State<ObservationPage> {
                                           ),
                                         ],
                                       );
-                                    }).toList(),
+                                    }),
                                   ],
                                 ),
                               ),
                               Container(
-                                padding: EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(vertical: 16),
                                 child: Row(
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     ElevatedButton(
                                       style: ElevatedButton.styleFrom(
-                                        primary: Colors
-                                            .white, // Couleur de fond du bouton
-                                        onPrimary: Colors
-                                            .black, // Couleur du texte lorsque le bouton est pressé
-                                        padding: EdgeInsets.symmetric(
+                                        foregroundColor: Colors
+                                            .black, backgroundColor: Colors
+                                            .white, // Couleur du texte lorsque le bouton est pressé
+                                        padding: const EdgeInsets.symmetric(
                                             horizontal: 16,
                                             vertical:
                                                 12), // Rembourrage du bouton
-                                        textStyle: TextStyle(
+                                        textStyle: const TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight
                                                 .bold), // Style du texte du bouton
@@ -585,20 +586,19 @@ class _ObservationPageState extends State<ObservationPage> {
                                         ),
                                       ),
                                       onPressed: _addRow,
-                                      child: Text('Ajouter une ligne'),
+                                      child: const Text('Ajouter une ligne'),
                                     ),
-                                    SizedBox(width: 16),
+                                    const SizedBox(width: 16),
                                     ElevatedButton(
                                       style: ElevatedButton.styleFrom(
-                                        primary: Colors
-                                            .white, // Couleur de fond du bouton
-                                        onPrimary: Colors
-                                            .black, // Couleur du texte lorsque le bouton est pressé
-                                        padding: EdgeInsets.symmetric(
+                                        foregroundColor: Colors
+                                            .black, backgroundColor: Colors
+                                            .white, // Couleur du texte lorsque le bouton est pressé
+                                        padding: const EdgeInsets.symmetric(
                                             horizontal: 16,
                                             vertical:
                                                 12), // Rembourrage du bouton
-                                        textStyle: TextStyle(
+                                        textStyle: const TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight
                                                 .bold), // Style du texte du bouton
@@ -608,7 +608,7 @@ class _ObservationPageState extends State<ObservationPage> {
                                         ),
                                       ),
                                       onPressed: _saveData,
-                                      child: Text('Enregistrer les données'),
+                                      child: const Text('Enregistrer les données'),
                                     ),
                                   ],
                                 ),

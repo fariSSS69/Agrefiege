@@ -4,7 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class DashboardPage extends StatefulWidget {
-  const DashboardPage({Key? key}) : super(key: key);
+  const DashboardPage({super.key});
 
   @override
   _DashboardPageState createState() => _DashboardPageState();
@@ -110,7 +110,7 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void _sort<T>(Comparable<T> getField(Map<String, dynamic> observation),
+  void _sort<T>(Comparable<T> Function(Map<String, dynamic> observation) getField,
       int columnIndex, bool ascending) {
     _observations.sort((a, b) {
       final aValue = getField(a);
@@ -132,9 +132,9 @@ class _DashboardPageState extends State<DashboardPage> {
     return Scaffold(
       body: Center(
         child: _observations == null
-            ? CircularProgressIndicator()
+            ? const CircularProgressIndicator()
             : _observations.isEmpty
-                ? Text('Aucune observation trouvée.')
+                ? const Text('Aucune observation trouvée.')
                 : SingleChildScrollView(
                     scrollDirection: Axis.vertical,
                     child: DataTable(
@@ -142,14 +142,14 @@ class _DashboardPageState extends State<DashboardPage> {
                       sortAscending: _isAscending,
                       columns: [
                         DataColumn(
-                          label: Text('Date'),
+                          label: const Text('Date'),
                           onSort: (columnIndex, ascending) => _sort<DateTime>(
                               (observation) => observation['Date_observation'],
                               columnIndex,
                               ascending),
                         ),
                         DataColumn(
-                          label: Text('Parcelle'),
+                          label: const Text('Parcelle'),
                           onSort: (columnIndex, ascending) => _sort<int>(
                               (observation) =>
                                   observation['Parcelle']['numero'],
@@ -157,14 +157,14 @@ class _DashboardPageState extends State<DashboardPage> {
                               ascending),
                         ),
                         DataColumn(
-                          label: Text('Notation'),
+                          label: const Text('Notation'),
                           onSort: (columnIndex, ascending) => _sort<String>(
                               (observation) => observation['Notations'],
                               columnIndex,
                               ascending),
                         ),
                         DataColumn(
-                          label: Text('Note'),
+                          label: const Text('Note'),
                           onSort: (columnIndex, ascending) => _sort<String>(
                               (observation) => observation['Note'],
                               columnIndex,
@@ -192,7 +192,7 @@ class _DashboardPageState extends State<DashboardPage> {
         onPressed: () {
           _getUserData(); // Actualiser les données lorsque le bouton est pressé
         },
-        child: Icon(Icons.refresh), // Icône d'actualisation
+        child: const Icon(Icons.refresh), // Icône d'actualisation
       ),
     );
   }

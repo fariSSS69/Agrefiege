@@ -1,16 +1,9 @@
 import 'package:agrefiege/pages/home_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:agrefiege/pages/sign_up_page.dart';
 import 'package:agrefiege/widgets/form_container_widget.dart';
 import 'package:agrefiege/global/common/toast.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
-import 'package:google_sign_in/google_sign_in.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/widgets.dart';
 
 import '../../firebase_auth_implementation/firebase_auth_services.dart';
 
@@ -25,8 +18,8 @@ class _LoginPageState extends State<LoginPage> {
   bool _isSigning = false;
   final FirebaseAuthService _auth = FirebaseAuthService();
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
-  TextEditingController _emailController = TextEditingController();
-  TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
 
   Future<bool> verifierObservateur(String email) async {
     final QuerySnapshot observateurs = await FirebaseFirestore.instance
@@ -56,11 +49,11 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
+              const Text(
                 "Connexion",
                 style: TextStyle(fontSize: 27, fontWeight: FontWeight.bold),
               ),
-              SizedBox(
+              const SizedBox(
                 height: 30,
               ),
               FormContainerWidget(
@@ -68,7 +61,7 @@ class _LoginPageState extends State<LoginPage> {
                 hintText: "Email",
                 isPasswordField: false,
               ),
-              SizedBox(
+              const SizedBox(
                 height: 10,
               ),
               FormContainerWidget(
@@ -76,7 +69,7 @@ class _LoginPageState extends State<LoginPage> {
                 hintText: "Mot de passe",
                 isPasswordField: true,
               ),
-              SizedBox(
+              const SizedBox(
                 height: 30,
               ),
               GestureDetector(
@@ -92,10 +85,10 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: Center(
                     child: _isSigning
-                        ? CircularProgressIndicator(
+                        ? const CircularProgressIndicator(
                             color: Colors.white,
                           )
-                        : Text(
+                        : const Text(
                             "Connexion",
                             style: TextStyle(
                               color: Colors.white,
@@ -105,12 +98,12 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
-              SizedBox(height: 10),
+              const SizedBox(height: 10),
               GestureDetector(
                 onTap: () {
                   _resetPassword();
                 },
-                child: Text(
+                child: const Text(
                   "Mot de passe oublié ?",
                   style: TextStyle(
                     color: Colors.blue,

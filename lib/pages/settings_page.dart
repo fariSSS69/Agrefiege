@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   _SettingsPageState createState() => _SettingsPageState();
@@ -21,28 +21,27 @@ class _SettingsPageState extends State<SettingsPage> {
           true, // L'utilisateur peut fermer la boîte de dialogue en cliquant à l'extérieur
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: Text(
+          title: const Text(
             'Confirmer la déconnexion',
             style: TextStyle(
               fontWeight: FontWeight.bold,
             ),
           ),
-          content: SingleChildScrollView(
+          content: const SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
                 Text('Voulez-vous vraiment vous déconnecter ?'),
               ],
             ),
           ),
-          actionsPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          actionsPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           actionsAlignment: MainAxisAlignment.spaceBetween,
           actions: <Widget>[
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                primary: Colors.redAccent,
-                onPrimary: Colors.white,
+                foregroundColor: Colors.white, backgroundColor: Colors.redAccent,
               ),
-              child: Text('Se déconnecter'),
+              child: const Text('Se déconnecter'),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
                 _signOut();
@@ -50,10 +49,9 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                primary: Colors.grey.shade200,
-                onPrimary: Colors.black,
+                foregroundColor: Colors.black, backgroundColor: Colors.grey.shade200,
               ),
-              child: Text('Annuler'),
+              child: const Text('Annuler'),
               onPressed: () {
                 Navigator.of(dialogContext).pop();
               },
@@ -80,7 +78,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 child: InkWell(
                   onTap:
                       _showSignOutConfirmationDialog, // Affiche la boîte de dialogue de confirmation
-                  child: Text(
+                  child: const Text(
                     'Se déconnecter',
                     style: TextStyle(
                       color: Colors.white,
@@ -91,7 +89,7 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
           ),
-          Expanded(
+          const Expanded(
             child: Center(
                 // Contenu de la page Paramètre
                 ),

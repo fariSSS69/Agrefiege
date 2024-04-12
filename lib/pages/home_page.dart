@@ -1,6 +1,5 @@
 import 'package:agrefiege/pages/dashboard_page.dart';
 import 'package:agrefiege/pages/observation_page.dart';
-import 'package:agrefiege/pages/profile_page.dart';
 import 'package:agrefiege/pages/settings_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +10,7 @@ import 'package:motion_tab_bar/MotionTabBar.dart';
 class HomePage extends StatefulWidget {
   final String? userEmail;
 
-  const HomePage({Key? key, this.userEmail}) : super(key: key);
+  const HomePage({super.key, this.userEmail});
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -64,16 +63,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     final List<Widget> adminPages = [
       _buildAdminHomeView(context),
-      DashboardPage(),
-      ObservationPage(),
-      SettingsPage(),
+      const DashboardPage(),
+      const ObservationPage(),
+      const SettingsPage(),
     ];
 
     final List<Widget> observerPages = [
       _buildObserverView(context),
-      DashboardPage(),
-      ObservationPage(),
-      SettingsPage(),
+      const DashboardPage(),
+      const ObservationPage(),
+      const SettingsPage(),
     ];
 
     return Scaffold(
@@ -82,15 +81,15 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         actions: isAdmin
             ? [
                 IconButton(
-                  icon: Icon(Icons.add_location),
+                  icon: const Icon(Icons.add_location),
                   onPressed: () => _addNewLieu(context),
                 ),
                 IconButton(
-                  icon: Icon(Icons.add_circle_outline),
+                  icon: const Icon(Icons.add_circle_outline),
                   onPressed: () => _addNewParcelle(context),
                 ),
                 IconButton(
-                  icon: Icon(Icons.person_add),
+                  icon: const Icon(Icons.person_add),
                   onPressed: () => _createNewObservateur(context),
                 ),
               ]
@@ -109,7 +108,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           });
         },
         icons: isAdmin ? adminTabs : observerTabs,
-        textStyle: TextStyle(color: Colors.blueAccent),
+        textStyle: const TextStyle(color: Colors.blueAccent),
         controller: _tabController,
       ),
       body: IndexedStack(
@@ -131,12 +130,12 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         children: [
           Text(
             'Bienvenue $userEmail',
-            style: TextStyle(
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16.0,
             ),
           ),
-          SizedBox(height: 8.0),
+          const SizedBox(height: 8.0),
           Text(
             adminMessage,
             style: TextStyle(
@@ -158,21 +157,21 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       child: RichText(
         textAlign: TextAlign.center,
         text: TextSpan(
-          style: TextStyle(
+          style: const TextStyle(
             color: Colors.black,
             fontSize: 16.0,
           ),
           children: [
-            TextSpan(
+            const TextSpan(
               text: 'Bienvenue ',
             ),
             TextSpan(
               text: userEmail,
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
               ),
             ),
-            TextSpan(
+            const TextSpan(
               text: ' vous êtes connecté en tant qu\'observateur.',
             ),
           ],
@@ -182,34 +181,34 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _addNewLieu(BuildContext context) {
-    final TextEditingController _lieuIdController = TextEditingController();
-    final TextEditingController _nomLieuController = TextEditingController();
-    final TextEditingController _nombreParcellesController =
+    final TextEditingController lieuIdController = TextEditingController();
+    final TextEditingController nomLieuController = TextEditingController();
+    final TextEditingController nombreParcellesController =
         TextEditingController();
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Ajouter un nouveau lieu'),
+          title: const Text('Ajouter un nouveau lieu'),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
                 TextField(
-                  controller: _lieuIdController,
-                  decoration: InputDecoration(
+                  controller: lieuIdController,
+                  decoration: const InputDecoration(
                     labelText: 'ID du lieu',
                   ),
                 ),
                 TextField(
-                  controller: _nomLieuController,
-                  decoration: InputDecoration(
+                  controller: nomLieuController,
+                  decoration: const InputDecoration(
                     labelText: 'Nom du lieu',
                   ),
                 ),
                 TextField(
-                  controller: _nombreParcellesController,
-                  decoration: InputDecoration(
+                  controller: nombreParcellesController,
+                  decoration: const InputDecoration(
                     labelText: 'Nombre de parcelles',
                   ),
                   keyboardType: TextInputType.number,
@@ -219,18 +218,18 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
           actions: <Widget>[
             TextButton(
-              child: Text('Annuler'),
+              child: const Text('Annuler'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: Text('Ajouter'),
+              child: const Text('Ajouter'),
               onPressed: () {
-                final String lieuId = _lieuIdController.text.trim();
-                final String nomLieu = _nomLieuController.text.trim();
+                final String lieuId = lieuIdController.text.trim();
+                final String nomLieu = nomLieuController.text.trim();
                 final int nombreParcelles =
-                    int.tryParse(_nombreParcellesController.text) ?? 0;
+                    int.tryParse(nombreParcellesController.text) ?? 0;
 
                 if (lieuId.isNotEmpty &&
                     nomLieu.isNotEmpty &&
@@ -242,7 +241,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       .then((docSnapshot) {
                     if (docSnapshot.exists) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('L\'ID du lieu existe déjà')),
+                        const SnackBar(content: Text('L\'ID du lieu existe déjà')),
                       );
                     } else {
                       FirebaseFirestore.instance
@@ -254,7 +253,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       }).then((value) {
                         Navigator.of(context).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Lieu ajouté avec succès')),
+                          const SnackBar(content: Text('Lieu ajouté avec succès')),
                         );
                       }).catchError((error) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -267,7 +266,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   });
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
+                    const SnackBar(
                         content: Text(
                             'Veuillez remplir tous les champs avec des valeurs valides')),
                   );
@@ -281,43 +280,43 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _addNewParcelle(BuildContext context) {
-    final TextEditingController _parcelleIdController = TextEditingController();
-    final TextEditingController _numeroParcelleController =
+    final TextEditingController parcelleIdController = TextEditingController();
+    final TextEditingController numeroParcelleController =
         TextEditingController();
-    final TextEditingController _lieuIdController = TextEditingController();
-    final TextEditingController _notationsController =
+    final TextEditingController lieuIdController = TextEditingController();
+    final TextEditingController notationsController =
         TextEditingController(); // Contrôleur pour les notations
 
     showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('Ajouter une nouvelle parcelle'),
+          title: const Text('Ajouter une nouvelle parcelle'),
           content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
                 TextField(
-                  controller: _parcelleIdController,
-                  decoration: InputDecoration(
+                  controller: parcelleIdController,
+                  decoration: const InputDecoration(
                     labelText: 'ID de la parcelle (custom)',
                   ),
                 ),
                 TextField(
-                  controller: _numeroParcelleController,
-                  decoration: InputDecoration(
+                  controller: numeroParcelleController,
+                  decoration: const InputDecoration(
                     labelText: 'Numéro de la parcelle',
                   ),
                   keyboardType: TextInputType.number,
                 ),
                 TextField(
-                  controller: _lieuIdController,
-                  decoration: InputDecoration(
+                  controller: lieuIdController,
+                  decoration: const InputDecoration(
                     labelText: 'ID du lieu référencé',
                   ),
                 ),
                 TextField(
-                  controller: _notationsController,
-                  decoration: InputDecoration(
+                  controller: notationsController,
+                  decoration: const InputDecoration(
                     labelText: 'Notations (séparées par des virgules)',
                   ),
                 ),
@@ -326,19 +325,19 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
           ),
           actions: <Widget>[
             TextButton(
-              child: Text('Annuler'),
+              child: const Text('Annuler'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
             ),
             TextButton(
-              child: Text('Ajouter'),
+              child: const Text('Ajouter'),
               onPressed: () {
-                final String parcelleId = _parcelleIdController.text.trim();
+                final String parcelleId = parcelleIdController.text.trim();
                 final int? numeroParcelle =
-                    int.tryParse(_numeroParcelleController.text);
-                final String lieuId = _lieuIdController.text.trim();
-                final String notations = _notationsController
+                    int.tryParse(numeroParcelleController.text);
+                final String lieuId = lieuIdController.text.trim();
+                final String notations = notationsController
                     .text; // Obtenez les valeurs de notation
 
                 if (parcelleId.isNotEmpty &&
@@ -351,7 +350,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       .then((docSnapshot) {
                     if (docSnapshot.exists) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
+                        const SnackBar(
                             content: Text('L\'ID de la parcelle existe déjà')),
                       );
                     } else {
@@ -374,7 +373,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                         notationsCollection.doc(parcelleId).set(notationData);
                         Navigator.of(context).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                               content: Text('Parcelle ajoutée avec succès')),
                         );
                       }).catchError((error) {
@@ -388,7 +387,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   });
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
+                    const SnackBar(
                         content: Text(
                             'Veuillez remplir tous les champs avec des valeurs valides')),
                   );
@@ -402,48 +401,48 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _createNewObservateur(BuildContext context) {
-  final TextEditingController _observateurIdController =
+  final TextEditingController observateurIdController =
       TextEditingController();
-  final TextEditingController _nomController = TextEditingController();
-  final TextEditingController _prenomController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _lieuIdController = TextEditingController();
+  final TextEditingController nomController = TextEditingController();
+  final TextEditingController prenomController = TextEditingController();
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController lieuIdController = TextEditingController();
 
   showDialog(
     context: context,
     builder: (BuildContext context) {
       return AlertDialog(
-        title: Text('Créer un nouvel observateur'),
+        title: const Text('Créer un nouvel observateur'),
         content: SingleChildScrollView(
           child: ListBody(
             children: <Widget>[
               TextField(
-                controller: _observateurIdController,
-                decoration: InputDecoration(
+                controller: observateurIdController,
+                decoration: const InputDecoration(
                   labelText: 'ID de l\'observateur (custom)',
                 ),
               ),
               TextField(
-                controller: _nomController,
-                decoration: InputDecoration(
+                controller: nomController,
+                decoration: const InputDecoration(
                   labelText: 'Nom',
                 ),
               ),
               TextField(
-                controller: _prenomController,
-                decoration: InputDecoration(
+                controller: prenomController,
+                decoration: const InputDecoration(
                   labelText: 'Prénom',
                 ),
               ),
               TextField(
-                controller: _emailController,
-                decoration: InputDecoration(
+                controller: emailController,
+                decoration: const InputDecoration(
                   labelText: 'Email',
                 ),
               ),
               TextField(
-                controller: _lieuIdController,
-                decoration: InputDecoration(
+                controller: lieuIdController,
+                decoration: const InputDecoration(
                   labelText: 'ID du lieu référencé',
                 ),
               ),
@@ -452,20 +451,20 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
         actions: <Widget>[
           TextButton(
-            child: Text('Annuler'),
+            child: const Text('Annuler'),
             onPressed: () {
               Navigator.of(context).pop();
             },
           ),
           TextButton(
-            child: Text('Créer'),
+            child: const Text('Créer'),
             onPressed: () async {
               final String observateurId =
-                  _observateurIdController.text.trim();
-              final String nom = _nomController.text.trim();
-              final String prenom = _prenomController.text.trim();
-              final String email = _emailController.text.trim();
-              final String lieuId = _lieuIdController.text.trim();
+                  observateurIdController.text.trim();
+              final String nom = nomController.text.trim();
+              final String prenom = prenomController.text.trim();
+              final String email = emailController.text.trim();
+              final String lieuId = lieuIdController.text.trim();
 
               if (observateurId.isNotEmpty &&
                   nom.isNotEmpty &&
@@ -494,7 +493,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
+                    const SnackBar(
                         content: Text('Observateur créé avec succès')),
                   );
                 } catch (error) {
@@ -506,7 +505,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 }
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
+                  const SnackBar(
                       content: Text(
                           'Veuillez remplir tous les champs avec des valeurs valides')),
                 );
