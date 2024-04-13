@@ -241,7 +241,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       .then((docSnapshot) {
                     if (docSnapshot.exists) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('L\'ID du lieu existe déjà')),
+                        const SnackBar(
+                            content: Text('L\'ID du lieu existe déjà')),
                       );
                     } else {
                       FirebaseFirestore.instance
@@ -253,7 +254,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                       }).then((value) {
                         Navigator.of(context).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Lieu ajouté avec succès')),
+                          const SnackBar(
+                              content: Text('Lieu ajouté avec succès')),
                         );
                       }).catchError((error) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -337,8 +339,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 final int? numeroParcelle =
                     int.tryParse(numeroParcelleController.text);
                 final String lieuId = lieuIdController.text.trim();
-                final String notations = notationsController
-                    .text; // Obtenez les valeurs de notation
+                final String notations =
+                    notationsController.text; // Obtenez les valeurs de notation
 
                 if (parcelleId.isNotEmpty &&
                     numeroParcelle != null &&
@@ -401,120 +403,135 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _createNewObservateur(BuildContext context) {
-  final TextEditingController observateurIdController =
-      TextEditingController();
-  final TextEditingController nomController = TextEditingController();
-  final TextEditingController prenomController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController lieuIdController = TextEditingController();
+    final TextEditingController observateurIdController =
+        TextEditingController();
+    final TextEditingController nomController = TextEditingController();
+    final TextEditingController prenomController = TextEditingController();
+    final TextEditingController emailController = TextEditingController();
+    final TextEditingController lieuIdController = TextEditingController();
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Créer un nouvel observateur'),
-        content: SingleChildScrollView(
-          child: ListBody(
-            children: <Widget>[
-              TextField(
-                controller: observateurIdController,
-                decoration: const InputDecoration(
-                  labelText: 'ID de l\'observateur (custom)',
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Créer un nouvel observateur'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                TextField(
+                  controller: observateurIdController,
+                  decoration: const InputDecoration(
+                    labelText: 'ID de l\'observateur (custom)',
+                  ),
                 ),
-              ),
-              TextField(
-                controller: nomController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom',
+                TextField(
+                  controller: nomController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nom',
+                  ),
                 ),
-              ),
-              TextField(
-                controller: prenomController,
-                decoration: const InputDecoration(
-                  labelText: 'Prénom',
+                TextField(
+                  controller: prenomController,
+                  decoration: const InputDecoration(
+                    labelText: 'Prénom',
+                  ),
                 ),
-              ),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(
-                  labelText: 'Email',
+                TextField(
+                  controller: emailController,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                  ),
                 ),
-              ),
-              TextField(
-                controller: lieuIdController,
-                decoration: const InputDecoration(
-                  labelText: 'ID du lieu référencé',
+                TextField(
+                  controller: lieuIdController,
+                  decoration: const InputDecoration(
+                    labelText: 'ID du lieu référencé',
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Annuler'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-          TextButton(
-            child: const Text('Créer'),
-            onPressed: () async {
-              final String observateurId =
-                  observateurIdController.text.trim();
-              final String nom = nomController.text.trim();
-              final String prenom = prenomController.text.trim();
-              final String email = emailController.text.trim();
-              final String lieuId = lieuIdController.text.trim();
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Annuler'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Créer'),
+              onPressed: () async {
+                final String observateurId =
+                    observateurIdController.text.trim();
+                final String nom = nomController.text.trim();
+                final String prenom = prenomController.text.trim();
+                final String email = emailController.text.trim();
+                final String lieuId = lieuIdController.text.trim();
 
-              if (observateurId.isNotEmpty &&
-                  nom.isNotEmpty &&
-                  prenom.isNotEmpty &&
-                  email.isNotEmpty &&
-                  lieuId.isNotEmpty) {
-                try {
-                  // Créer l'utilisateur dans Firebase Authentication
-                  await FirebaseAuth.instance.createUserWithEmailAndPassword(
-                      email: email, password: 'password');
+                if (observateurId.isNotEmpty &&
+                    nom.isNotEmpty &&
+                    prenom.isNotEmpty &&
+                    email.isNotEmpty &&
+                    lieuId.isNotEmpty) {
+                  try {
+                    // Vérification de l'existence de l'observateur avec le même ID
+                    final observateurSnapshot = await FirebaseFirestore.instance
+                        .collection('Observateurs')
+                        .doc(observateurId)
+                        .get();
 
-                  // Ajouter l'utilisateur dans Firestore
-                  await FirebaseFirestore.instance
-                      .collection('Observateurs')
-                      .doc(observateurId)
-                      .set({
-                    'Nom': nom,
-                    'Prenom': prenom,
-                    'email': email,
-                    'Lieux': [
-                      FirebaseFirestore.instance
-                          .collection('Lieux')
-                          .doc(lieuId)
-                    ],
-                  });
+                    if (observateurSnapshot.exists) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('L\'ID de l\'observateur existe déjà'),
+                        ),
+                      );
+                    } else {
+                      // Créer l'utilisateur dans Firebase Authentication
+                      await FirebaseAuth.instance
+                          .createUserWithEmailAndPassword(
+                              email: email, password: 'password');
 
-                  Navigator.of(context).pop();
+                      // Ajouter l'utilisateur dans Firestore
+                      await FirebaseFirestore.instance
+                          .collection('Observateurs')
+                          .doc(observateurId)
+                          .set({
+                        'Nom': nom,
+                        'Prenom': prenom,
+                        'email': email,
+                        'Lieux': [
+                          FirebaseFirestore.instance
+                              .collection('Lieux')
+                              .doc(lieuId)
+                        ],
+                      });
+
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                            content: Text('Observateur créé avec succès')),
+                      );
+                    }
+                  } catch (error) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                          content: Text(
+                              'Erreur lors de la création de l\'observateur: $error')),
+                    );
+                  }
+                } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                        content: Text('Observateur créé avec succès')),
-                  );
-                } catch (error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
                         content: Text(
-                            'Erreur lors de la création de l\'observateur: $error')),
+                            'Veuillez remplir tous les champs avec des valeurs valides')),
                   );
                 }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text(
-                          'Veuillez remplir tous les champs avec des valeurs valides')),
-                );
-              }
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
