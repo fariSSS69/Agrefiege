@@ -19,6 +19,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late MotionTabBarController _tabController;
   late bool isAdmin;
+  String _userEmail = '';
 
   late CollectionReference<Map<String, dynamic>>
       parcellesCollection; // Déclaration de la collection de parcelles
@@ -28,7 +29,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    isAdmin = widget.userEmail == 'faris.maisonneuve@wanadoo.fr' ||
+    _userEmail = FirebaseAuth.instance.currentUser?.email ?? '';
+    isAdmin = _userEmail == 'faris.maisonneuve@wanadoo.fr' ||
         FirebaseAuth.instance.currentUser?.email ==
             'faris.maisonneuve@wanadoo.fr';
     _tabController =
@@ -119,8 +121,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildAdminHomeView(BuildContext context) {
-    String userEmail =
-        FirebaseAuth.instance.currentUser?.email ?? 'Utilisateur';
     String adminMessage =
         isAdmin ? 'Vous êtes connecté en tant qu\'administrateur.' : '';
 
@@ -129,7 +129,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Text(
-            'Bienvenue $userEmail',
+            'Bienvenue $_userEmail',
             style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16.0,
@@ -149,9 +149,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildObserverView(BuildContext context) {
-    String userEmail =
-        FirebaseAuth.instance.currentUser?.email ?? 'Utilisateur';
-
     // Observateur Home avec message et email en gras
     return Center(
       child: RichText(
@@ -166,7 +163,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
               text: 'Bienvenue ',
             ),
             TextSpan(
-              text: userEmail,
+              text: _userEmail,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
               ),
