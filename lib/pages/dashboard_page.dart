@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:csv/csv.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({Key? key}) : super(key: key);
@@ -130,6 +133,35 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  Future<void> _exportToExcel() async {
+    final List<List<dynamic>> rows = [
+      ['Date', 'Parcelle', 'Notation', 'Note']
+    ]; // Header
+
+    for (var observation in _observations) {
+      rows.add([
+        DateFormat('dd/MM/yyyy HH:mm').format(observation['Date_observation']),
+        observation['Parcelle']['numero'].toString(),
+        observation['Notations'],
+        observation['Note'],
+      ]);
+    }
+
+    final csvString = const ListToCsvConverter().convert(rows);
+    final csvStringWithSemicolons = csvString.replaceAll(',', ';');
+
+    final Directory? directory = await getExternalStorageDirectory();
+    final String directoryPath = directory!.path;
+    final String filePath = '$directoryPath/observations_${DateTime.now()}.csv';
+
+    final File file = File(filePath);
+    await file.writeAsString(csvStringWithSemicolons);
+
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Les données ont été exportées vers $filePath'),
+    ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -198,13 +230,21 @@ class _DashboardPageState extends State<DashboardPage> {
                   ),
       ),
       appBar: AppBar(
-        centerTitle: true, // Centrer le titre (ou l'icône) de l'AppBar
-        title: IconButton(
-          onPressed: () {
-            _getUserData(); // Actualiser les données lorsque l'icône est pressée
-          },
-          icon: Icon(Icons.refresh), // Icône de rafraîchissement
-        ),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            onPressed: _exportToExcel,
+            icon: Icon(Icons.file_download),
+            tooltip: 'Exporter vers Excel',
+          ),
+          IconButton(
+            onPressed: () {
+              _getUserData();
+            },
+            icon: Icon(Icons.refresh),
+            tooltip: 'Actualiser',
+          ),
+        ],
       ),
     );
   }
