@@ -22,7 +22,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   String _userEmail = '';
 
   late CollectionReference<Map<String, dynamic>>
-      parcellesCollection; // Déclaration de la collection de parcelles
+      parcellesCollection; // Déclaration de la collection de parcellesc
   late CollectionReference<Map<String, dynamic>>
       notationsCollection; // Déclaration de la collection de notations
 
