@@ -46,8 +46,7 @@ class _ObservationPageState extends State<ObservationPage> {
           .toList();
       if (_lieuxDropdownItems!.isNotEmpty) {
         _lieuId = _lieuxDropdownItems!
-            .first.value; // Sélectionnez le premier lieu par défaut
-      }
+            .first.value; // Sélectionnez le premier lieu par défauts
     }
 
     setState(() {
