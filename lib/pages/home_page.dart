@@ -279,125 +279,125 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _addNewParcelle(BuildContext context) {
-    final TextEditingController parcelleIdController = TextEditingController();
-    final TextEditingController numeroParcelleController =
-        TextEditingController();
-    final TextEditingController lieuIdController = TextEditingController();
-    final TextEditingController notationsController =
-        TextEditingController(); // Contrôleur pour les notations
+  final TextEditingController parcelleIdController = TextEditingController();
+  final TextEditingController numeroParcelleController =
+      TextEditingController();
+  final TextEditingController lieuIdController = TextEditingController();
+  final TextEditingController notationsController =
+      TextEditingController(); // Contrôleur pour les noms des notations et leur type
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Ajouter une nouvelle parcelle'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                TextField(
-                  controller: parcelleIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'ID de la parcelle (custom)',
-                  ),
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Ajouter une nouvelle parcelle'),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              TextField(
+                controller: parcelleIdController,
+                decoration: const InputDecoration(
+                  labelText: 'ID de la parcelle',
                 ),
-                TextField(
-                  controller: numeroParcelleController,
-                  decoration: const InputDecoration(
-                    labelText: 'Numéro de la parcelle',
-                  ),
-                  keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: numeroParcelleController,
+                decoration: const InputDecoration(
+                  labelText: 'Numéro de la parcelle',
                 ),
-                TextField(
-                  controller: lieuIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'ID du lieu référencé',
-                  ),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: lieuIdController,
+                decoration: const InputDecoration(
+                  labelText: 'ID du lieu référencé',
                 ),
-                TextField(
-                  controller: notationsController,
-                  decoration: const InputDecoration(
-                    labelText: 'Notations (séparées par des virgules)',
-                  ),
+              ),
+              TextField(
+                controller: notationsController,
+                decoration: const InputDecoration(
+                  labelText: 'Notations (format: nom:type, ex: DenGa:libre)',
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Annuler'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Ajouter'),
-              onPressed: () {
-                final String parcelleId = parcelleIdController.text.trim();
-                final int? numeroParcelle =
-                    int.tryParse(numeroParcelleController.text);
-                final String lieuId = lieuIdController.text.trim();
-                final String notations =
-                    notationsController.text; // Obtenez les valeurs de notation
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Annuler'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          TextButton(
+            child: const Text('Ajouter'),
+            onPressed: () {
+              final String parcelleId = parcelleIdController.text.trim();
+              final int? numeroParcelle =
+                  int.tryParse(numeroParcelleController.text);
+              final String lieuId = lieuIdController.text.trim();
+              final String notationsInput = notationsController.text.trim();
 
-                if (parcelleId.isNotEmpty &&
-                    numeroParcelle != null &&
-                    lieuId.isNotEmpty) {
-                  FirebaseFirestore.instance
-                      .collection('Parcelles')
-                      .doc(parcelleId)
-                      .get()
-                      .then((docSnapshot) {
-                    if (docSnapshot.exists) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('L\'ID de la parcelle existe déjà')),
-                      );
-                    } else {
-                      FirebaseFirestore.instance
-                          .collection('Parcelles')
-                          .doc(parcelleId)
-                          .set({
-                        'Numero_parcelle': numeroParcelle,
-                        'Lieu': FirebaseFirestore.instance.doc('Lieux/$lieuId'),
-                      }).then((value) {
-                        // Créez le document de notation correspondant
-                        Map<String, dynamic> notationData = {
-                          'Parcelle': parcellesCollection.doc(parcelleId),
-                        };
-                        // Ajoutez chaque champ de notation avec sa valeur
-                        notations.split(',').forEach((notation) {
-                          notationData[notation.trim()] = '';
-                        });
-                        // Enregistrez le document de notation dans la collection de notations
-                        notationsCollection.doc(parcelleId).set(notationData);
-                        Navigator.of(context).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Parcelle ajoutée avec succès')),
-                        );
-                      }).catchError((error) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  'Erreur lors de l\'ajout de la parcelle: $error')),
-                        );
+              if (parcelleId.isNotEmpty && numeroParcelle != null && lieuId.isNotEmpty) {
+                FirebaseFirestore.instance
+                    .collection('Parcelles')
+                    .doc(parcelleId)
+                    .get()
+                    .then((docSnapshot) {
+                  if (docSnapshot.exists) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('L\'ID de la parcelle existe déjà')),
+                    );
+                  } else {
+                    FirebaseFirestore.instance
+                        .collection('Parcelles')
+                        .doc(parcelleId)
+                        .set({
+                      'Numero_parcelle': numeroParcelle,
+                      'Lieu': FirebaseFirestore.instance.doc('Lieux/$lieuId'),
+                    });
+
+                    Map<String, dynamic> notationsData = {};
+
+                    // Découpage de la chaîne des notations et traitement de chaque notation
+                    notationsInput.split(',').forEach((notationPair) {
+                        final parts = notationPair.split(':');
+                        if (parts.length == 2) {
+                          final notationName = parts[0].trim();
+                          final notationType = parts[1].trim();
+                          // Stocker le type de notation dans Firestore avec une chaîne vide
+                          notationsData[notationName] = {
+                            'type': notationType,
+                            'valeur': '' // Initialisation à une chaîne vide pour toutes les notations
+                          };
+                        }
                       });
-                    }
-                  });
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Veuillez remplir tous les champs avec des valeurs valides')),
-                  );
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+
+                    // Ajouter le document de notation à Firestore
+                    notationsCollection.doc(parcelleId).set(notationsData).then((_) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Parcelle ajoutée avec succès')),
+                      );
+                    }).catchError((error) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erreur lors de l\'ajout de la parcelle: $error')),
+                      );
+                    });
+                  }
+                });
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Veuillez remplir tous les champs avec des valeurs valides')),
+                );
+              }
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
 
   void _createNewObservateur(BuildContext context) {
     final TextEditingController observateurIdController =

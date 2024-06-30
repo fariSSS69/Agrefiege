@@ -76,113 +76,121 @@ class _ObservationPageState extends State<ObservationPage> {
   }
 
   Future<Map<String, dynamic>> _getNotationData(String parcelleId) async {
-    final parcelleDoc =
-        await FirebaseFirestore.instance.doc('Parcelles/$parcelleId').get();
-    final parcelleRef = parcelleDoc.reference;
+  final DocumentSnapshot notationSnapshot = await FirebaseFirestore.instance
+      .collection('Notations')
+      .doc(parcelleId)
+      .get();
 
-    final notationDoc = await FirebaseFirestore.instance
-        .collection('Notations')
-        .where('Parcelle', isEqualTo: parcelleRef)
-        .get()
-        .then((querySnapshot) => querySnapshot.docs.first);
-
-    return notationDoc.data();
+  if (notationSnapshot.exists) {
+    return notationSnapshot.data() as Map<String, dynamic>;
+  } else {
+    return {};
   }
+}
 
   Future<void> _saveData() async {
-    bool isSaved = false;
-    for (int i = 0; i < _rows.length; i++) {
-      final row = _rows[i];
-      final parcelleId = row['parcelle'];
-      final notation = row['notation'];
-      final note = row['Note'].text;
+  bool isSaved = false;
+  for (int i = 0; i < _rows.length; i++) {
+    final row = _rows[i];
+    final parcelleId = row['parcelle'];
+    final notationName = row['notation'];
+    final TextEditingController noteController = row['Note'];
+    final String noteText = noteController.text;
 
-      if (parcelleId != null && notation != null && note.isNotEmpty) {
-        // Vérifiez si une observation similaire existe déjà
-        final querySnapshot = await FirebaseFirestore.instance
-            .collection('Observations')
-            .where('Parcelle',
-                isEqualTo:
-                    FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
-            .where('Notations', isEqualTo: notation)
-            .get();
+    if (parcelleId != null && notationName != null && noteText.isNotEmpty) {
+      final Map<String, dynamic> notationData = await _getNotationData(parcelleId);
+      final Map<String, dynamic> notationInfo = notationData[notationName] ?? {};
+      final String? notationType = notationInfo['type'];
+      final bool isNoteValid = notationType == 'libre' ||
+          (notationType == 'fixe' &&
+              int.tryParse(noteText) != null &&
+              int.parse(noteText) >= 1 &&
+              int.parse(noteText) <= 9);
 
-        if (querySnapshot.docs.isNotEmpty) {
-          // Il existe déjà une observation similaire
-          bool shouldReplace = await _showReplaceDialog();
-          if (shouldReplace) {
-            // Supprimez l'ancienne observation
-            await querySnapshot.docs.first.reference.delete();
-            // Ajoutez la nouvelle observation
-            await _addObservation(parcelleId, notation, note);
-            isSaved = true;
-          }
-        } else {
-          // Aucune observation similaire, ajoutez simplement la nouvelle observation
-          await _addObservation(parcelleId, notation, note);
+      if (!isNoteValid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('La note pour "$notationName" doit être un nombre entre 1 et 9.')),
+        );
+        return; // Stop saving if the note is invalid for fixed notations
+      }
+
+      // Check if a similar observation already exists
+      final querySnapshot = await FirebaseFirestore.instance
+          .collection('Observations')
+          .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
+          .where('Notations', isEqualTo: notationName)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        // If a similar observation exists, ask the user if they want to replace it
+        bool shouldReplace = await _showReplaceDialog();
+        if (shouldReplace) {
+          // Delete the old observation and add the new one
+          await querySnapshot.docs.first.reference.delete();
+          await _addObservation(parcelleId, notationName, noteText);
           isSaved = true;
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content:
-                  Text('Vous ne pouvez pas enregistrer des données vides.')),
-        );
-        return;
+        // If no similar observation exists, simply add the new observation
+        await _addObservation(parcelleId, notationName, noteText);
+        isSaved = true;
       }
-    }
-
-    if (isSaved) {
-      setState(() {
-        _rows.clear();
-        _hasUnsavedData = false;
-      });
-      // Ne montrer le message de succès que si au moins une donnée a été enregistrée
+    } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Données enregistrées avec succès')),
+        const SnackBar(content: Text('Vous ne pouvez pas enregistrer des données vides.')),
       );
+      return;
     }
   }
 
-  Future<bool> _showReplaceDialog() async {
-    return await showDialog(
-          context: context,
-          builder: (BuildContext context) {
-            return AlertDialog(
-              title: const Text('Confirmation'),
-              content: const Text(
-                  'La parcelle ainsi que la notation existent déjà en base, voulez-vous la remplacer ?'),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Non'),
-                  onPressed: () {
-                    Navigator.of(context).pop(false);
-                  },
-                ),
-                TextButton(
-                  child: const Text('Oui'),
-                  onPressed: () {
-                    Navigator.of(context).pop(true);
-                  },
-                ),
-              ],
-            );
-          },
-        ) ??
-        false; // Retourne false si l'utilisateur ferme la boîte de dialogue
-  }
-
-  Future<void> _addObservation(
-      String parcelleId, String notation, String note) async {
-    await FirebaseFirestore.instance.collection('Observations').add({
-      'Date_observation': Timestamp.now(),
-      'Observateur':
-          FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
-      'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
-      'Note': note,
-      'Notations': notation,
+  // Clear the form and reset state if data is saved
+  if (isSaved) {
+    setState(() {
+      _rows.clear();
+      _hasUnsavedData = false;
     });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Données enregistrées avec succès')),
+    );
   }
+}
+
+Future<void> _addObservation(String parcelleId, String notation, String note) async {
+  await FirebaseFirestore.instance.collection('Observations').add({
+    'Date_observation': Timestamp.now(),
+    'Observateur': FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
+    'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
+    'Note': note,
+    'Notations': notation,
+  });
+}
+
+Future<bool> _showReplaceDialog() async {
+  return await showDialog<bool>(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Confirmation'),
+        content: const Text('Une observation similaire existe déjà. Voulez-vous la remplacer ?'),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Non'),
+            onPressed: () {
+              Navigator.of(context).pop(false);
+            },
+          ),
+          TextButton(
+            child: const Text('Oui'),
+            onPressed: () {
+              Navigator.of(context).pop(true);
+            },
+          ),
+        ],
+      );
+    },
+  ) ?? false; // Return false if the dialog is dismissed
+}
+ 
 
   Future<void> _createNewObservateur(BuildContext context) {
     final TextEditingController observateurIdController =
@@ -475,67 +483,37 @@ class _ObservationPageState extends State<ObservationPage> {
                                               height: 56,
                                               alignment: Alignment.center,
                                               child: row['parcelle'] != null
-                                                  ? FutureBuilder<
-                                                      Map<String, dynamic>>(
-                                                      future: _getNotationData(
-                                                          row['parcelle']),
-                                                      builder: (context,
-                                                          notationSnapshot) {
-                                                        if (notationSnapshot
-                                                                .connectionState ==
-                                                            ConnectionState
-                                                                .waiting) {
-                                                          return const CircularProgressIndicator();
-                                                        } else if (notationSnapshot
-                                                            .hasError) {
-                                                          return Text(
-                                                              'Error: ${notationSnapshot.error}');
-                                                        } else if (notationSnapshot
-                                                                    .data ==
-                                                                null ||
-                                                            notationSnapshot
-                                                                .data!
-                                                                .isEmpty) {
-                                                          return const Text(
-                                                              'Aucune notation disponible pour cette parcelle');
-                                                        } else {
-                                                          var notationData =
-                                                              notationSnapshot
-                                                                  .data!;
-                                                          List<String>
-                                                              notations =
-                                                              notationData.keys
-                                                                  .where((key) =>
-                                                                      key !=
-                                                                      'Parcelle')
-                                                                  .toList();
-                                                          return DropdownButton<
-                                                              String>(
-                                                            value:
-                                                                row['notation'],
-                                                            onChanged:
-                                                                (newValue) {
-                                                              setState(() {
-                                                                row['notation'] =
-                                                                    newValue;
-                                                              });
-                                                            },
-                                                            items: notations.map<
-                                                                DropdownMenuItem<
-                                                                    String>>((String
-                                                                value) {
-                                                              return DropdownMenuItem<
-                                                                  String>(
-                                                                value: value,
-                                                                child:
-                                                                    Text(value),
-                                                              );
-                                                            }).toList(),
-                                                          );
-                                                        }
-                                                      },
-                                                    )
-                                                  : Container(),
+    ? FutureBuilder<Map<String, dynamic>>(
+        future: _getNotationData(row['parcelle']),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const CircularProgressIndicator();
+          } else if (snapshot.hasError) {
+            return Text('Error: ${snapshot.error}');
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Text('Aucune notation disponible pour cette parcelle');
+          } else {
+            // Utiliser les données de notations pour créer une liste déroulante
+            Map<String, dynamic> notationsData = snapshot.data!;
+            List<String> notationNames = notationsData.keys.toList();
+            return DropdownButton<String>(
+              value: row['notation'],
+              onChanged: (newValue) {
+                setState(() {
+                  row['notation'] = newValue;
+                });
+              },
+              items: notationNames.map<DropdownMenuItem<String>>((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+            );
+          }
+        },
+      )
+    : Container(),
                                             ),
                                           ),
                                           TableCell(
