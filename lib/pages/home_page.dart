@@ -736,46 +736,47 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
 
 
   void _addNewNotation(BuildContext context) {
-    final TextEditingController nomNotationController = TextEditingController();
-    final TextEditingController typeNotationController = TextEditingController();
+  final TextEditingController nomNotationController = TextEditingController();
+  final TextEditingController typeNotationController = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Ajouter une nouvelle notation'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                TextField(
-                  controller: nomNotationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom de la notation',
-                  ),
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return AlertDialog(
+        title: const Text('Ajouter une nouvelle notation'),
+        content: SingleChildScrollView(
+          child: ListBody(
+            children: <Widget>[
+              TextField(
+                controller: nomNotationController,
+                decoration: const InputDecoration(
+                  labelText: 'Nom de la notation',
                 ),
-                TextField(
-                  controller: typeNotationController,
-                  decoration: const InputDecoration(
-                    labelText: 'Type de notation (fixe ou libre)',
-                  ),
+              ),
+              TextField(
+                controller: typeNotationController,
+                decoration: const InputDecoration(
+                  labelText: 'Type de notation (fixe ou libre)',
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Annuler'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Ajouter'),
-              onPressed: () {
-                final String nomNotation = nomNotationController.text.trim();
-                final String typeNotation = typeNotationController.text.trim();
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Annuler'),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+          TextButton(
+            child: const Text('Ajouter'),
+            onPressed: () {
+              final String nomNotation = nomNotationController.text.trim();
+              final String typeNotation = typeNotationController.text.trim().toLowerCase();
 
-                if (nomNotation.isNotEmpty && typeNotation.isNotEmpty) {
+              if (nomNotation.isNotEmpty && typeNotation.isNotEmpty) {
+                if (typeNotation == 'fixe' || typeNotation == 'libre') {
                   FirebaseFirestore.instance
                       .collection('Notations')
                       .doc(nomNotation)
@@ -812,16 +813,24 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
                         content: Text(
-                            'Veuillez remplir tous les champs avec des valeurs valides')),
+                            'Type de notation invalide. Utilisez "fixe" ou "libre"')),
                   );
                 }
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                      content: Text(
+                          'Veuillez remplir tous les champs avec des valeurs valides')),
+                );
+              }
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
+
   void _editParcelle(BuildContext context, String parcelleId, Map<String, dynamic> parcelle) {
   final TextEditingController numeroParcelleController = TextEditingController(text: parcelle['Numero_parcelle'].toString());
   String selectedLieuId = parcelle['Lieu'].id;
