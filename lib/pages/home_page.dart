@@ -370,7 +370,7 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
                 TextField(
                   controller: lieuIdController,
                   decoration: const InputDecoration(
-                    labelText: 'ID du lieu',
+                    labelText: 'Numéro du lieu',
                   ),
                 ),
                 TextField(
