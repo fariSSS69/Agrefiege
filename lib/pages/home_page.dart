@@ -455,135 +455,142 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
   }
 
   void _addNewParcelle(BuildContext context) {
-    final TextEditingController numeroParcelleController = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setState) {
-            return AlertDialog(
-              title: const Text('Ajouter une nouvelle parcelle'),
-              content: SingleChildScrollView(
-                child: ListBody(
-                  children: <Widget>[
-                    TextField(
-                      controller: numeroParcelleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Numéro de la parcelle',
-                      ),
-                      keyboardType: TextInputType.number,
-                    ),
-                    DropdownButtonFormField(
-                      value: selectedLieuId,
-                      items: availableLieux.map((lieu) {
-                        return DropdownMenuItem(
-                          value: lieu['id'],
-                          child: Text(lieu['nom']),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          selectedLieuId = value.toString();
-                        });
-                      },
-                      decoration: const InputDecoration(
-                        labelText: 'Sélectionnez le lieu',
-                      ),
-                    ),
-                    // Liste de CheckBoxes pour sélectionner les notations
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: availableNotations.map((notation) {
-                        return CheckboxListTile(
-                          title: Text(notation['nom']),
-                          value: selectedNotations.contains(notation['nom']),
-                          onChanged: (bool? value) {
-                            setState(() {
-                              if (value!) {
-                                selectedNotations.add(notation['nom']);
-                              } else {
-                                selectedNotations.remove(notation['nom']);
-                              }
-                            });
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ),
-              actions: <Widget>[
-                TextButton(
-                  child: const Text('Annuler'),
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                ),
-                TextButton(
-                  child: const Text('Ajouter'),
-                  onPressed: () {
-                    final int? numeroParcelle =
-                        int.tryParse(numeroParcelleController.text);
-
-                    if (numeroParcelle != null && selectedLieuId.isNotEmpty) {
-                      // Utilisation du numéro de parcelle comme identifiant unique
-                      final String parcelleId = numeroParcelle.toString();
-
-                      FirebaseFirestore.instance
-                          .collection('Parcelles')
-                          .doc(parcelleId)
-                          .get()
-                          .then((docSnapshot) {
-                        if (docSnapshot.exists) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content: Text('Le numéro de parcelle existe déjà')),
-                          );
-                        } else {
-                          // Ajouter les données de la parcelle à Firestore
-                          Map<String, dynamic> parcelleData = {
-                            'Numero_parcelle': numeroParcelle,
-                            'Lieu': FirebaseFirestore.instance
-                                .doc('Lieux/$selectedLieuId'),
-                            'Notations': selectedNotations // Ajouter les notations sélectionnées ici
-                          };
-
-                          FirebaseFirestore.instance
-                              .collection('Parcelles')
-                              .doc(parcelleId)
-                              .set(parcelleData)
-                              .then((_) {
-                            Navigator.of(context).pop();
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Parcelle ajoutée avec succès')),
-                            );
-                          }).catchError((error) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                  content: Text(
-                                      'Erreur lors de l\'ajout de la parcelle: $error')),
-                            );
-                          });
-                        }
-                      });
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text(
-                                'Veuillez remplir tous les champs avec des valeurs valides')),
-                      );
-                    }
-                  },
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+  final TextEditingController numeroParcelleController = TextEditingController();
+  
+  Future<void> _refreshNotations(StateSetter setState) async {
+    final notationsSnapshot = await FirebaseFirestore.instance.collection('Notations').get();
+    setState(() {
+      availableNotations = notationsSnapshot.docs.map((doc) => doc.data()).toList();
+    });
   }
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Ajouter une nouvelle parcelle'),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[
+                  TextField(
+                    controller: numeroParcelleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Numéro de la parcelle',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  DropdownButtonFormField(
+                    value: selectedLieuId,
+                    items: availableLieux.map((lieu) {
+                      return DropdownMenuItem(
+                        value: lieu['id'],
+                        child: Text(lieu['nom']),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedLieuId = value.toString();
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Sélectionnez le lieu',
+                    ),
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Notations'),
+                      IconButton(
+                        icon: Icon(Icons.refresh, color: Colors.blue),
+                        onPressed: () => _refreshNotations(setState),
+                      ),
+                    ],
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: availableNotations.map((notation) {
+                      return CheckboxListTile(
+                        title: Text(notation['nom']),
+                        value: selectedNotations.contains(notation['nom']),
+                        onChanged: (bool? value) {
+                          setState(() {
+                            if (value!) {
+                              selectedNotations.add(notation['nom']);
+                            } else {
+                              selectedNotations.remove(notation['nom']);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Annuler'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: const Text('Ajouter'),
+                onPressed: () {
+                  final int? numeroParcelle = int.tryParse(numeroParcelleController.text);
+
+                  if (numeroParcelle != null && selectedLieuId.isNotEmpty) {
+                    final String parcelleId = numeroParcelle.toString();
+
+                    FirebaseFirestore.instance
+                        .collection('Parcelles')
+                        .doc(parcelleId)
+                        .get()
+                        .then((docSnapshot) {
+                      if (docSnapshot.exists) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Le numéro de parcelle existe déjà')),
+                        );
+                      } else {
+                        Map<String, dynamic> parcelleData = {
+                          'Numero_parcelle': numeroParcelle,
+                          'Lieu': FirebaseFirestore.instance.doc('Lieux/$selectedLieuId'),
+                          'Notations': selectedNotations
+                        };
+
+                        FirebaseFirestore.instance
+                            .collection('Parcelles')
+                            .doc(parcelleId)
+                            .set(parcelleData)
+                            .then((_) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Parcelle ajoutée avec succès')),
+                          );
+                        }).catchError((error) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Erreur lors de l\'ajout de la parcelle: $error')),
+                          );
+                        });
+                      }
+                    });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Veuillez remplir tous les champs avec des valeurs valides')),
+                    );
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
 
   void _createNewObservateur(BuildContext context) {
   final TextEditingController observateurIdController = TextEditingController();
