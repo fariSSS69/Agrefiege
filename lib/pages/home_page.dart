@@ -7,10 +7,27 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:motion_tab_bar/MotionTabBarController.dart';
 import 'package:motion_tab_bar/MotionTabBar.dart';
 
+void main() {
+  runApp(MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Gestion de Parcelles',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: HomePage(),
+    );
+  }
+}
+
 class HomePage extends StatefulWidget {
   final String? userEmail;
 
-  const HomePage({super.key, this.userEmail});
+  const HomePage({Key? key, this.userEmail}) : super(key: key);
 
   @override
   _HomePageState createState() => _HomePageState();
@@ -19,26 +36,58 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   late MotionTabBarController _tabController;
   late bool isAdmin;
+  List<Map<String, dynamic>> availableLieux = [];
+  List<Map<String, dynamic>> availableNotations = [];
+  String selectedLieuId = '';
+  List<String> selectedNotations = [];
   String _userEmail = '';
 
-  late CollectionReference<Map<String, dynamic>>
-      parcellesCollection; // Déclaration de la collection de parcellesc
-  late CollectionReference<Map<String, dynamic>>
-      notationsCollection; // Déclaration de la collection de notations
+  late CollectionReference<Map<String, dynamic>> parcellesCollection;
+  late CollectionReference<Map<String, dynamic>> notationsCollection;
 
   @override
   void initState() {
     super.initState();
+    _fetchLieux();
+    _fetchNotations();
     _userEmail = FirebaseAuth.instance.currentUser?.email ?? '';
     isAdmin = _userEmail == 'faris.maisonneuve@wanadoo.fr' ||
         FirebaseAuth.instance.currentUser?.email ==
             'faris.maisonneuve@wanadoo.fr';
     _tabController =
         MotionTabBarController(length: isAdmin ? 4 : 4, vsync: this);
-    parcellesCollection = FirebaseFirestore.instance.collection(
-        'Parcelles'); // Initialisation de la collection de parcelles
-    notationsCollection = FirebaseFirestore.instance.collection(
-        'Notations'); // Initialisation de la collection de notations
+    parcellesCollection = FirebaseFirestore.instance.collection('Parcelles');
+    notationsCollection =
+        FirebaseFirestore.instance.collection('Notations');
+  }
+
+  void _fetchLieux() {
+    FirebaseFirestore.instance.collection('Lieux').get().then((snapshot) {
+      final List<Map<String, dynamic>> lieuxData = snapshot.docs
+          .map((doc) => {'id': doc.id, 'nom': doc['Nom_lieu']})
+          .toList();
+      setState(() {
+        availableLieux = lieuxData;
+        if (availableLieux.isNotEmpty) {
+          selectedLieuId = availableLieux[0]['id'];
+        }
+      });
+    }).catchError((error) {
+      // Handle error
+    });
+  }
+
+  void _fetchNotations() {
+    FirebaseFirestore.instance.collection('Notations').get().then((snapshot) {
+      final List<Map<String, dynamic>> notationsData = snapshot.docs
+          .map((doc) => {'nom': doc['nom'], 'type': doc['type']})
+          .toList();
+      setState(() {
+        availableNotations = notationsData;
+      });
+    }).catchError((error) {
+      // Handle error
+    });
   }
 
   @override
@@ -65,16 +114,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
 
     final List<Widget> adminPages = [
       _buildAdminHomeView(context),
-      const DashboardPage(),
-      const ObservationPage(),
-      const SettingsPage(),
+      DashboardPage(),
+      ObservationPage(),
+      SettingsPage(),
     ];
 
     final List<Widget> observerPages = [
       _buildObserverView(context),
-      const DashboardPage(),
-      const ObservationPage(),
-      const SettingsPage(),
+      DashboardPage(),
+      ObservationPage(),
+      SettingsPage(),
     ];
 
     return Scaffold(
@@ -93,6 +142,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 IconButton(
                   icon: const Icon(Icons.person_add),
                   onPressed: () => _createNewObservateur(context),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.note_add),
+                  onPressed: () => _addNewNotation(context),
                 ),
               ]
             : null,
@@ -149,7 +202,6 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   Widget _buildObserverView(BuildContext context) {
-    // Observateur Home avec message et email en gras
     return Center(
       child: RichText(
         textAlign: TextAlign.center,
@@ -279,133 +331,141 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
   }
 
   void _addNewParcelle(BuildContext context) {
-  final TextEditingController parcelleIdController = TextEditingController();
-  final TextEditingController numeroParcelleController =
-      TextEditingController();
-  final TextEditingController lieuIdController = TextEditingController();
-  final TextEditingController notationsController =
-      TextEditingController(); // Contrôleur pour les noms des notations et leur type
+    final TextEditingController numeroParcelleController = TextEditingController();
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Ajouter une nouvelle parcelle'),
-        content: SingleChildScrollView(
-          child: ListBody(
-            children: <Widget>[
-              TextField(
-                controller: parcelleIdController,
-                decoration: const InputDecoration(
-                  labelText: 'ID de la parcelle',
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: const Text('Ajouter une nouvelle parcelle'),
+              content: SingleChildScrollView(
+                child: ListBody(
+                  children: <Widget>[
+                    TextField(
+                      controller: numeroParcelleController,
+                      decoration: const InputDecoration(
+                        labelText: 'Numéro de la parcelle',
+                      ),
+                      keyboardType: TextInputType.number,
+                    ),
+                    DropdownButtonFormField(
+                      value: selectedLieuId,
+                      items: availableLieux.map((lieu) {
+                        return DropdownMenuItem(
+                          value: lieu['id'],
+                          child: Text(lieu['nom']),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedLieuId = value.toString();
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        labelText: 'Sélectionnez le lieu',
+                      ),
+                    ),
+                    // Liste de CheckBoxes pour sélectionner les notations
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: availableNotations.map((notation) {
+                        return CheckboxListTile(
+                          title: Text(notation['nom']),
+                          value: selectedNotations.contains(notation['nom']),
+                          onChanged: (bool? value) {
+                            setState(() {
+                              if (value!) {
+                                selectedNotations.add(notation['nom']);
+                              } else {
+                                selectedNotations.remove(notation['nom']);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ],
                 ),
               ),
-              TextField(
-                controller: numeroParcelleController,
-                decoration: const InputDecoration(
-                  labelText: 'Numéro de la parcelle',
+              actions: <Widget>[
+                TextButton(
+                  child: const Text('Annuler'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
                 ),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: lieuIdController,
-                decoration: const InputDecoration(
-                  labelText: 'ID du lieu référencé',
-                ),
-              ),
-              TextField(
-                controller: notationsController,
-                decoration: const InputDecoration(
-                  labelText: 'Notations (format: nom:type, ex: DenGa:libre)',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Annuler'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-          TextButton(
-            child: const Text('Ajouter'),
-            onPressed: () {
-              final String parcelleId = parcelleIdController.text.trim();
-              final int? numeroParcelle =
-                  int.tryParse(numeroParcelleController.text);
-              final String lieuId = lieuIdController.text.trim();
-              final String notationsInput = notationsController.text.trim();
+                TextButton(
+                  child: const Text('Ajouter'),
+                  onPressed: () {
+                    final int? numeroParcelle =
+                        int.tryParse(numeroParcelleController.text);
 
-              if (parcelleId.isNotEmpty && numeroParcelle != null && lieuId.isNotEmpty) {
-                FirebaseFirestore.instance
-                    .collection('Parcelles')
-                    .doc(parcelleId)
-                    .get()
-                    .then((docSnapshot) {
-                  if (docSnapshot.exists) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('L\'ID de la parcelle existe déjà')),
-                    );
-                  } else {
-                    FirebaseFirestore.instance
-                        .collection('Parcelles')
-                        .doc(parcelleId)
-                        .set({
-                      'Numero_parcelle': numeroParcelle,
-                      'Lieu': FirebaseFirestore.instance.doc('Lieux/$lieuId'),
-                    });
+                    if (numeroParcelle != null && selectedLieuId.isNotEmpty) {
+                      // Utilisation du numéro de parcelle comme identifiant unique
+                      final String parcelleId = numeroParcelle.toString();
 
-                    Map<String, dynamic> notationsData = {};
-
-                    // Découpage de la chaîne des notations et traitement de chaque notation
-                    notationsInput.split(',').forEach((notationPair) {
-                        final parts = notationPair.split(':');
-                        if (parts.length == 2) {
-                          final notationName = parts[0].trim();
-                          final notationType = parts[1].trim();
-                          // Stocker le type de notation dans Firestore avec une chaîne vide
-                          notationsData[notationName] = {
-                            'type': notationType,
-                            'valeur': '' // Initialisation à une chaîne vide pour toutes les notations
+                      FirebaseFirestore.instance
+                          .collection('Parcelles')
+                          .doc(parcelleId)
+                          .get()
+                          .then((docSnapshot) {
+                        if (docSnapshot.exists) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Le numéro de parcelle existe déjà')),
+                          );
+                        } else {
+                          // Ajouter les données de la parcelle à Firestore
+                          Map<String, dynamic> parcelleData = {
+                            'Numero_parcelle': numeroParcelle,
+                            'Lieu': FirebaseFirestore.instance
+                                .doc('Lieux/$selectedLieuId'),
+                            'Notations': selectedNotations // Ajouter les notations sélectionnées ici
                           };
+
+                          FirebaseFirestore.instance
+                              .collection('Parcelles')
+                              .doc(parcelleId)
+                              .set(parcelleData)
+                              .then((_) {
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content: Text('Parcelle ajoutée avec succès')),
+                            );
+                          }).catchError((error) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                  content: Text(
+                                      'Erreur lors de l\'ajout de la parcelle: $error')),
+                            );
+                          });
                         }
                       });
-
-                    // Ajouter le document de notation à Firestore
-                    notationsCollection.doc(parcelleId).set(notationsData).then((_) {
-                      Navigator.of(context).pop();
+                    } else {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Parcelle ajoutée avec succès')),
+                        const SnackBar(
+                            content: Text(
+                                'Veuillez remplir tous les champs avec des valeurs valides')),
                       );
-                    }).catchError((error) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Erreur lors de l\'ajout de la parcelle: $error')),
-                      );
-                    });
-                  }
-                });
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Veuillez remplir tous les champs avec des valeurs valides')),
-                );
-              }
-            },
-          ),
-        ],
-      );
-    },
-  );
-}
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
 
   void _createNewObservateur(BuildContext context) {
-    final TextEditingController observateurIdController =
+    final TextEditingController nomObservateurController =
         TextEditingController();
-    final TextEditingController nomController = TextEditingController();
-    final TextEditingController prenomController = TextEditingController();
-    final TextEditingController emailController = TextEditingController();
-    final TextEditingController lieuIdController = TextEditingController();
+    final TextEditingController emailObservateurController =
+        TextEditingController();
 
     showDialog(
       context: context,
@@ -416,34 +476,17 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             child: ListBody(
               children: <Widget>[
                 TextField(
-                  controller: observateurIdController,
+                  controller: nomObservateurController,
                   decoration: const InputDecoration(
-                    labelText: 'ID de l\'observateur (custom)',
+                    labelText: 'Nom de l\'observateur',
                   ),
                 ),
                 TextField(
-                  controller: nomController,
+                  controller: emailObservateurController,
                   decoration: const InputDecoration(
-                    labelText: 'Nom',
+                    labelText: 'Email de l\'observateur',
                   ),
-                ),
-                TextField(
-                  controller: prenomController,
-                  decoration: const InputDecoration(
-                    labelText: 'Prénom',
-                  ),
-                ),
-                TextField(
-                  controller: emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                  ),
-                ),
-                TextField(
-                  controller: lieuIdController,
-                  decoration: const InputDecoration(
-                    labelText: 'ID du lieu référencé',
-                  ),
+                  keyboardType: TextInputType.emailAddress,
                 ),
               ],
             ),
@@ -457,66 +500,136 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
             TextButton(
               child: const Text('Créer'),
-              onPressed: () async {
-                final String observateurId =
-                    observateurIdController.text.trim();
-                final String nom = nomController.text.trim();
-                final String prenom = prenomController.text.trim();
-                final String email = emailController.text.trim();
-                final String lieuId = lieuIdController.text.trim();
+              onPressed: () {
+                final String nomObservateur =
+                    nomObservateurController.text.trim();
+                final String emailObservateur =
+                    emailObservateurController.text.trim();
 
-                if (observateurId.isNotEmpty &&
-                    nom.isNotEmpty &&
-                    prenom.isNotEmpty &&
-                    email.isNotEmpty &&
-                    lieuId.isNotEmpty) {
-                  try {
-                    // Vérification de l'existence de l'observateur avec le même ID
-                    final observateurSnapshot = await FirebaseFirestore.instance
-                        .collection('Observateurs')
-                        .doc(observateurId)
-                        .get();
-
-                    if (observateurSnapshot.exists) {
+                if (nomObservateur.isNotEmpty &&
+                    emailObservateur.isNotEmpty &&
+                    emailObservateur.contains('@')) {
+                  FirebaseFirestore.instance
+                      .collection('Observateurs')
+                      .doc(emailObservateur)
+                      .get()
+                      .then((docSnapshot) {
+                    if (docSnapshot.exists) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('L\'ID de l\'observateur existe déjà'),
-                        ),
+                            content: Text(
+                                'L\'observateur avec cet email existe déjà')),
                       );
                     } else {
-                      // Créer l'utilisateur dans Firebase Authentication
-                      await FirebaseAuth.instance
-                          .createUserWithEmailAndPassword(
-                              email: email, password: 'password');
-
-                      // Ajouter l'utilisateur dans Firestore
-                      await FirebaseFirestore.instance
+                      FirebaseFirestore.instance
                           .collection('Observateurs')
-                          .doc(observateurId)
+                          .doc(emailObservateur)
                           .set({
-                        'Nom': nom,
-                        'Prenom': prenom,
-                        'email': email,
-                        'Lieux': [
-                          FirebaseFirestore.instance
-                              .collection('Lieux')
-                              .doc(lieuId)
-                        ],
+                        'Nom': nomObservateur,
+                        'Email': emailObservateur,
+                      }).then((value) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Observateur créé avec succès')),
+                        );
+                      }).catchError((error) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Erreur lors de la création de l\'observateur: $error')),
+                        );
                       });
+                    }
+                  });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                        content: Text(
+                            'Veuillez remplir tous les champs avec des valeurs valides')),
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
 
-                      Navigator.of(context).pop();
+  void _addNewNotation(BuildContext context) {
+    final TextEditingController nomNotationController = TextEditingController();
+    final TextEditingController typeNotationController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Ajouter une nouvelle notation'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                TextField(
+                  controller: nomNotationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Nom de la notation',
+                  ),
+                ),
+                TextField(
+                  controller: typeNotationController,
+                  decoration: const InputDecoration(
+                    labelText: 'Type de notation',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Annuler'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            TextButton(
+              child: const Text('Ajouter'),
+              onPressed: () {
+                final String nomNotation = nomNotationController.text.trim();
+                final String typeNotation = typeNotationController.text.trim();
+
+                if (nomNotation.isNotEmpty && typeNotation.isNotEmpty) {
+                  FirebaseFirestore.instance
+                      .collection('Notations')
+                      .doc(nomNotation)
+                      .get()
+                      .then((docSnapshot) {
+                    if (docSnapshot.exists) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                            content: Text('Observateur créé avec succès')),
+                            content: Text('La notation existe déjà')),
                       );
+                    } else {
+                      FirebaseFirestore.instance
+                          .collection('Notations')
+                          .doc(nomNotation)
+                          .set({
+                        'nom': nomNotation,
+                        'type': typeNotation,
+                      }).then((value) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text('Notation ajoutée avec succès')),
+                        );
+                      }).catchError((error) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'Erreur lors de l\'ajout de la notation: $error')),
+                        );
+                      });
                     }
-                  } catch (error) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text(
-                              'Erreur lors de la création de l\'observateur: $error')),
-                    );
-                  }
+                  });
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
@@ -532,3 +645,4 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 }
+

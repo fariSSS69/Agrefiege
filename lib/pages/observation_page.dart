@@ -46,7 +46,8 @@ class _ObservationPageState extends State<ObservationPage> {
           .toList();
       if (_lieuxDropdownItems!.isNotEmpty) {
         _lieuId = _lieuxDropdownItems!
-            .first.value; // Sélectionnez le premier lieu par défauts
+            .first.value; // Sélectionnez le premier lieu par défaut
+      }
     }
 
     setState(() {
@@ -74,85 +75,102 @@ class _ObservationPageState extends State<ObservationPage> {
     });
   }
 
-  Future<Map<String, dynamic>> _getNotationData(String parcelleId) async {
-  final DocumentSnapshot notationSnapshot = await FirebaseFirestore.instance
-      .collection('Notations')
-      .doc(parcelleId)
-      .get();
+  Future<List<Map<String, dynamic>>> _getNotationData(String parcelleId) async {
+  // Récupérer le document de la parcelle à partir de Firestore
+  final DocumentSnapshot<Map<String, dynamic>> parcelleSnapshot =
+      await FirebaseFirestore.instance.collection('Parcelles').doc(parcelleId).get();
 
-  if (notationSnapshot.exists) {
-    return notationSnapshot.data() as Map<String, dynamic>;
-  } else {
-    return {};
+  List<Map<String, dynamic>> notationsWithTypes = [];
+  
+  if (parcelleSnapshot.exists) {
+    List<dynamic> notations = parcelleSnapshot.data()!['Notations'];
+    
+    for (String nomNotation in notations) {
+      // Récupérer chaque document de notation pour obtenir le type
+      final DocumentSnapshot<Map<String, dynamic>> notationSnapshot =
+        await FirebaseFirestore.instance.collection('Notations').doc(nomNotation).get();
+
+      if (notationSnapshot.exists) {
+        notationsWithTypes.add({
+          'nom': nomNotation,
+          'type': notationSnapshot.data()!['type']
+        });
+      }
+    }
   }
+
+  return notationsWithTypes;
 }
 
-  Future<void> _saveData() async {
-  bool isSaved = false;
-  for (int i = 0; i < _rows.length; i++) {
-    final row = _rows[i];
-    final parcelleId = row['parcelle'];
-    final notationName = row['notation'];
-    final TextEditingController noteController = row['Note'];
-    final String noteText = noteController.text;
 
-    if (parcelleId != null && notationName != null && noteText.isNotEmpty) {
-      final Map<String, dynamic> notationData = await _getNotationData(parcelleId);
-      final Map<String, dynamic> notationInfo = notationData[notationName] ?? {};
-      final String? notationType = notationInfo['type'];
-      final bool isNoteValid = notationType == 'libre' ||
-          (notationType == 'fixe' &&
-              int.tryParse(noteText) != null &&
-              int.parse(noteText) >= 1 &&
-              int.parse(noteText) <= 9);
+   Future<void> _saveData() async {
+    bool isSaved = false;
+    for (int i = 0; i < _rows.length; i++) {
+      final row = _rows[i];
+      final parcelleId = row['parcelle'];
+      final notationName = row['notation'];
+      final TextEditingController noteController = row['Note'];
+      final String noteText = noteController.text;
 
-      if (!isNoteValid) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('La note pour "$notationName" doit être un nombre entre 1 et 9.')),
-        );
-        return; // Stop saving if the note is invalid for fixed notations
-      }
+      if (parcelleId != null && notationName != null && noteText.isNotEmpty) {
+        final List<Map<String, dynamic>> notationData = await _getNotationData(parcelleId);
+        final Map<String, dynamic>? notationInfo = notationData.firstWhere(
+            (notation) => notation['nom'] == notationName,
+            orElse: () => {'type': null});
+        final String? notationType = notationInfo?['type'];
+        final bool isNoteValid = notationType == 'libre' ||
+            (notationType == 'fixe' &&
+                int.tryParse(noteText) != null &&
+                int.parse(noteText) >= 1 &&
+                int.parse(noteText) <= 9);
 
-      // Check if a similar observation already exists
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('Observations')
-          .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
-          .where('Notations', isEqualTo: notationName)
-          .get();
+        if (!isNoteValid) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('La note pour "$notationName" doit être un nombre entre 1 et 9.')),
+          );
+          return; // Stop saving if the note is invalid for fixed notations
+        }
 
-      if (querySnapshot.docs.isNotEmpty) {
-        // If a similar observation exists, ask the user if they want to replace it
-        bool shouldReplace = await _showReplaceDialog();
-        if (shouldReplace) {
-          // Delete the old observation and add the new one
-          await querySnapshot.docs.first.reference.delete();
+        // Check if a similar observation already exists
+        final querySnapshot = await FirebaseFirestore.instance
+            .collection('Observations')
+            .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
+            .where('Notations', isEqualTo: notationName)
+            .get();
+
+        if (querySnapshot.docs.isNotEmpty) {
+          // If a similar observation exists, ask the user if they want to replace it
+          bool shouldReplace = await _showReplaceDialog();
+          if (shouldReplace) {
+            // Delete the old observation and add the new one
+            await querySnapshot.docs.first.reference.delete();
+            await _addObservation(parcelleId, notationName, noteText);
+            isSaved = true;
+          }
+        } else {
+          // If no similar observation exists, simply add the new observation
           await _addObservation(parcelleId, notationName, noteText);
           isSaved = true;
         }
       } else {
-        // If no similar observation exists, simply add the new observation
-        await _addObservation(parcelleId, notationName, noteText);
-        isSaved = true;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vous ne pouvez pas enregistrer des données vides.')),
+        );
+        return;
       }
-    } else {
+    }
+
+    // Clear the form and reset state if data is saved
+    if (isSaved) {
+      setState(() {
+        _rows.clear();
+        _hasUnsavedData = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vous ne pouvez pas enregistrer des données vides.')),
+        const SnackBar(content: Text('Données enregistrées avec succès')),
       );
-      return;
     }
   }
-
-  // Clear the form and reset state if data is saved
-  if (isSaved) {
-    setState(() {
-      _rows.clear();
-      _hasUnsavedData = false;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Données enregistrées avec succès')),
-    );
-  }
-}
 
 Future<void> _addObservation(String parcelleId, String notation, String note) async {
   await FirebaseFirestore.instance.collection('Observations').add({
@@ -477,56 +495,87 @@ Future<bool> _showReplaceDialog() async {
                                               ),
                                             ),
                                           ),
-                                          TableCell(
-                                            child: Container(
-                                              height: 56,
-                                              alignment: Alignment.center,
-                                              child: row['parcelle'] != null
-    ? FutureBuilder<Map<String, dynamic>>(
-        future: _getNotationData(row['parcelle']),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const CircularProgressIndicator();
-          } else if (snapshot.hasError) {
-            return Text('Error: ${snapshot.error}');
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Text('Aucune notation disponible pour cette parcelle');
-          } else {
-            // Utiliser les données de notations pour créer une liste déroulante
-            Map<String, dynamic> notationsData = snapshot.data!;
-            List<String> notationNames = notationsData.keys.toList();
-            return DropdownButton<String>(
-              value: row['notation'],
-              onChanged: (newValue) {
-                setState(() {
-                  row['notation'] = newValue;
-                });
-              },
-              items: notationNames.map<DropdownMenuItem<String>>((String value) {
-                return DropdownMenuItem<String>(
-                  value: value,
-                  child: Text(value),
-                );
-              }).toList(),
-            );
-          }
-        },
-      )
-    : Container(),
-                                            ),
-                                          ),
-                                          TableCell(
-                                            child: TextField(
-                                              controller: row['Note'],
-                                              decoration: const InputDecoration(
-                                                hintText: 'Notes ici...',
-                                                border: OutlineInputBorder(),
-                                                hintStyle:
-                                                    TextStyle(fontSize: 13),
-                                              ),
-                                              maxLines: 1,
-                                            ),
-                                          ),
+                                          //... (autres parties du code)
+
+TableCell(
+  child: Container(
+    height: 56,
+    alignment: Alignment.center,
+    child: row['parcelle'] != null
+      ? FutureBuilder<List<Map<String, dynamic>>>(
+          future: _getNotationData(row['parcelle']),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            } else if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}');
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Text('Aucune notation disponible pour cette parcelle');
+            } else {
+              List<Map<String, dynamic>> notationsData = snapshot.data!;
+              return DropdownButton<String>(
+                value: row['notation'],
+                onChanged: (newValue) {
+                  setState(() {
+                    row['notation'] = newValue;
+                    row['Note'] = TextEditingController();
+                    // Réinitialisez le type de notation sélectionné car il peut avoir changé
+                    row['selectedNotationType'] = notationsData.firstWhere(
+                      (notation) => notation['nom'] == newValue,
+                      orElse: () => {'type': null},
+                    )['type'];
+                  });
+                },
+                items: notationsData.map<DropdownMenuItem<String>>(
+                  (Map<String, dynamic> notation) {
+                    return DropdownMenuItem<String>(
+                      value: notation['nom'],
+                      child: Text(notation['nom']),
+                    );
+                  },
+                ).toList(),
+              );
+            }
+          },
+        )
+      : Container(),
+  ),
+),
+TableCell(
+  child: Container(
+    height: 56,
+    alignment: Alignment.center,
+    child: row['selectedNotationType'] == 'fixe'
+      ? DropdownButton<String>(
+          value: row['Note'].text.isNotEmpty ? row['Note'].text : null,
+          onChanged: (newValue) {
+            setState(() {
+              row['Note'].text = newValue ?? '';
+            });
+          },
+          items: List<String>.generate(9, (index) => '${index + 1}')
+              .map<DropdownMenuItem<String>>(
+                (String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                },
+              ).toList(),
+        )
+      : TextField(
+          controller: row['Note'],
+          decoration: const InputDecoration(
+            hintText: 'Notes ici...',
+            border: OutlineInputBorder(),
+            hintStyle: TextStyle(fontSize: 13),
+          ),
+          maxLines: 1,
+        ),
+  ),
+),
+
+//... (autres parties du code)
                                           TableCell(
                                             child: IconButton(
                                               icon: const Icon(Icons.delete),
