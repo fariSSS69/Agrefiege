@@ -180,7 +180,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ExpansionTile(
-          title: Center(child: Text('Liste des Parcelles')),
+          title: Center(child: Text('Liste des Parcelles & lieux')),
           childrenPadding: EdgeInsets.symmetric(horizontal: 16),
           collapsedBackgroundColor: Colors.grey[200],
           children: [
