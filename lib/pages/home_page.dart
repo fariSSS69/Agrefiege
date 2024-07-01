@@ -941,78 +941,92 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
 
 void _editLieu(BuildContext context, String lieuId, String nomLieu, int nombreParcelles) {
   final TextEditingController nomLieuController = TextEditingController(text: nomLieu);
-  final TextEditingController nombreParcellesController = TextEditingController(text: nombreParcelles.toString());
+  TextEditingController nombreParcellesController;
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Modifier le lieu'),
-        content: SingleChildScrollView(
-          child: ListBody(
-            children: <Widget>[
-              TextField(
-                controller: nomLieuController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom du lieu',
-                ),
+  // Récupérer le nombre de parcelles depuis Firestore
+  FirebaseFirestore.instance.collection('Lieux').doc(lieuId).get().then((doc) {
+    if (doc.exists) {
+      final int parcelles = doc.data()?['Nombre_parcelles'] ?? 0;
+      nombreParcellesController = TextEditingController(text: parcelles.toString());
+
+      // Afficher la boîte de dialogue
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Modifier le lieu'),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[
+                  TextField(
+                    controller: nomLieuController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom du lieu',
+                    ),
+                  ),
+                  TextField(
+                    controller: nombreParcellesController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nombre de parcelles',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                ],
               ),
-              TextField(
-                controller: nombreParcellesController,
-                decoration: const InputDecoration(
-                  labelText: 'Nombre de parcelles',
-                ),
-                keyboardType: TextInputType.number,
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Annuler'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: const Text('Modifier'),
+                onPressed: () {
+                  final String nomLieu = nomLieuController.text.trim();
+                  final int nombreParcelles = int.tryParse(nombreParcellesController.text) ?? 0;
+
+                  if (nomLieu.isNotEmpty && nombreParcelles > 0) {
+                    final Map<String, dynamic> updatedLieu = {
+                      'Nom_lieu': nomLieu,
+                      'Nombre_parcelles': nombreParcelles,
+                    };
+
+                    FirebaseFirestore.instance
+                        .collection('Lieux')
+                        .doc(lieuId)
+                        .update(updatedLieu)
+                        .then((_) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Lieu modifié avec succès')),
+                      );
+                    }).catchError((error) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erreur lors de la modification du lieu: $error')),
+                      );
+                    });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Veuillez remplir tous les champs avec des valeurs valides'),
+                      ),
+                    );
+                  }
+                },
               ),
             ],
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Annuler'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-          TextButton(
-            child: const Text('Modifier'),
-            onPressed: () {
-              final String nomLieu = nomLieuController.text.trim();
-              final int nombreParcelles = int.tryParse(nombreParcellesController.text) ?? 0;
-
-              if (nomLieu.isNotEmpty && nombreParcelles > 0) {
-                final Map<String, dynamic> updatedLieu = {
-                  'Nom_lieu': nomLieu,
-                  'Nombre_parcelles': nombreParcelles,
-                };
-
-                FirebaseFirestore.instance
-                    .collection('Lieux')
-                    .doc(lieuId)
-                    .update(updatedLieu)
-                    .then((_) {
-                  Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Lieu modifié avec succès')),
-                  );
-                }).catchError((error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Erreur lors de la modification du lieu: $error')),
-                  );
-                });
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Veuillez remplir tous les champs avec des valeurs valides'),
-                  ),
-                );
-              }
-            },
-          ),
-        ],
+          );
+        },
       );
-    },
-  );
+    }
+  }).catchError((error) {
+    // Gérer les erreurs de récupération depuis Firestore
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Erreur lors de la récupération des données du lieu: $error')),
+    );
+  });
 }
 void _editNotation(BuildContext context, String notationId, Map<String, dynamic> notationData) {
   final TextEditingController nomNotationController = TextEditingController(text: notationData['nom']);
