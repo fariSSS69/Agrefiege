@@ -1040,99 +1040,137 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
 
   void _addNewNotation(BuildContext context) {
   final TextEditingController nomNotationController = TextEditingController();
-  final TextEditingController typeNotationController = TextEditingController();
+  bool isLibreNotation = false;
+  int? amplitude = null;
 
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Ajouter une nouvelle notation'),
-        content: SingleChildScrollView(
-          child: ListBody(
-            children: <Widget>[
-              TextField(
-                controller: nomNotationController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom de la notation',
-                ),
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Ajouter une nouvelle notation'),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[
+                  TextField(
+                    controller: nomNotationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom de la notation',
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: isLibreNotation,
+                        onChanged: (value) {
+                          setState(() {
+                            isLibreNotation = value!;
+                          });
+                        },
+                      ),
+                      Text('Notation libre'),
+                    ],
+                  ),
+                  if (!isLibreNotation) ...[
+                    DropdownButton<int>(
+                      value: amplitude,
+                      hint: Text('Choisir l\'amplitude'),
+                      items: [
+                        DropdownMenuItem(
+                          value: 3,
+                          child: Text('0 à 3'),
+                        ),
+                        DropdownMenuItem(
+                          value: 4,
+                          child: Text('0 à 4'),
+                        ),
+                        DropdownMenuItem(
+                          value: 9,
+                          child: Text('1 à 9'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          amplitude = value;
+                        });
+                      },
+                    ),
+                  ],
+                ],
               ),
-              TextField(
-                controller: typeNotationController,
-                decoration: const InputDecoration(
-                  labelText: 'Type de notation (fixe ou libre)',
-                ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Annuler'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
               ),
-            ],
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Annuler'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-          TextButton(
-            child: const Text('Ajouter'),
-            onPressed: () {
-              final String nomNotation = nomNotationController.text.trim();
-              final String typeNotation = typeNotationController.text.trim().toLowerCase();
+              TextButton(
+                child: const Text('Ajouter'),
+                onPressed: () {
+                  final String nomNotation = nomNotationController.text.trim();
 
-              if (nomNotation.isNotEmpty && typeNotation.isNotEmpty) {
-                if (typeNotation == 'fixe' || typeNotation == 'libre') {
-                  FirebaseFirestore.instance
-                      .collection('Notations')
-                      .doc(nomNotation)
-                      .get()
-                      .then((docSnapshot) {
-                    if (docSnapshot.exists) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('La notation existe déjà')),
-                      );
-                    } else {
-                      FirebaseFirestore.instance
-                          .collection('Notations')
-                          .doc(nomNotation)
-                          .set({
-                        'nom': nomNotation,
-                        'type': typeNotation,
-                      }).then((value) {
-                        Navigator.of(context).pop();
+                  if (nomNotation.isNotEmpty) {
+                    String typeNotation = isLibreNotation ? 'libre' : 'note';
+
+                    if (!isLibreNotation && amplitude != null) {
+                      typeNotation = 'note $amplitude';
+                    }
+
+                    FirebaseFirestore.instance
+                        .collection('Notations')
+                        .doc(nomNotation)
+                        .get()
+                        .then((docSnapshot) {
+                      if (docSnapshot.exists) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text('Notation ajoutée avec succès')),
+                              content: Text('La notation existe déjà')),
                         );
-                      }).catchError((error) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                              content: Text(
-                                  'Erreur lors de l\'ajout de la notation: $error')),
-                        );
-                      });
-                    }
-                  });
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text(
-                            'Type de notation invalide. Utilisez "fixe" ou "libre"')),
-                  );
-                }
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text(
-                          'Veuillez remplir tous les champs avec des valeurs valides')),
-                );
-              }
-            },
-          ),
-        ],
+                      } else {
+                        FirebaseFirestore.instance
+                            .collection('Notations')
+                            .doc(nomNotation)
+                            .set({
+                              'nom': nomNotation,
+                              'type': typeNotation,
+                            })
+                            .then((value) {
+                              Navigator.of(context).pop();
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content:
+                                        Text('Notation ajoutée avec succès')),
+                              );
+                            })
+                            .catchError((error) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        'Erreur lors de l\'ajout de la notation: $error')),
+                              );
+                            });
+                      }
+                    });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text(
+                              'Veuillez remplir tous les champs avec des valeurs valides')),
+                    );
+                  }
+                },
+              ),
+            ],
+          );
+        },
       );
     },
   );
 }
+
 
 //   void _editParcelle(BuildContext context, String parcelleId, Map<String, dynamic> parcelle) {
 //   final TextEditingController numeroParcelleController = TextEditingController(text: parcelle['Numero_parcelle'].toString());
@@ -1352,7 +1390,7 @@ void _editNotation(BuildContext context, String notationId, Map<String, dynamic>
               TextField(
                 controller: typeNotationController,
                 decoration: const InputDecoration(
-                  labelText: 'Type de notation',
+                  labelText: 'Type de notation (Note 3 = 0 à 3) / (Note 4 = 0 à 4) / (Note 9 = 1 à 9) / (Note libre = libre)  ',
                 ),
               ),
             ],
