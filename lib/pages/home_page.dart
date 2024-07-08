@@ -174,43 +174,82 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildAdminHomeView(BuildContext context) {
+ Widget _buildAdminHomeView(BuildContext context) {
   return SingleChildScrollView(
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         ExpansionTile(
-          title: Center(child: Text('Liste des Parcelles & lieux')),
+          title: Center(
+            child: Text(
+              'Lieux & Parcelles',
+              style: TextStyle(color: Theme.of(context).primaryColor), // Utilisation de la couleur primaire de l'application
+            ),
+          ),
           childrenPadding: EdgeInsets.symmetric(horizontal: 16),
           collapsedBackgroundColor: Colors.grey[200],
           children: [
-            StreamBuilder<QuerySnapshot>(
-              stream: parcellesCollection.snapshots(),
-              builder: (context, parcellesSnapshot) {
-                if (parcellesSnapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
-                }
-                if (parcellesSnapshot.hasError) {
-                  return Center(child: Text('Erreur: ${parcellesSnapshot.error}'));
-                }
+            ...availableLieux.map((lieu) {
+              return StreamBuilder<QuerySnapshot>(
+                stream: parcellesCollection
+                    .where('Lieu', isEqualTo: FirebaseFirestore.instance.doc('Lieux/${lieu['id']}'))
+                    .snapshots(),
+                builder: (context, parcellesSnapshot) {
+                  if (parcellesSnapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+                  if (parcellesSnapshot.hasError) {
+                    return Center(child: Text('Erreur: ${parcellesSnapshot.error}'));
+                  }
 
-                final parcelles = parcellesSnapshot.data!.docs;
+                  final parcelles = parcellesSnapshot.data!.docs;
 
-                return ListView.separated(
-                  shrinkWrap: true,
-                  itemCount: parcelles.length,
-                  separatorBuilder: (context, index) => Divider(),
-                  itemBuilder: (context, index) {
-                    return _buildParcelleItem(context, parcelles[index]);
-                  },
-                );
-              },
-            ),
+                  return ExpansionTile(
+                    title: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Text(lieu['nom']),
+                            SizedBox(width: 8),
+                            IconButton(
+                              icon: Icon(Icons.edit),
+                              onPressed: () => _editLieu(context, lieu['id'], lieu['nom'], parcelles.length),
+                            ),
+                          ],
+                        ),
+                        Text('(${parcelles.length} parcelles)'),
+                      ],
+                    ),
+                    childrenPadding: EdgeInsets.symmetric(horizontal: 16),
+                    collapsedBackgroundColor: Colors.grey[200],
+                    children: [
+                      ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: parcelles.length,
+                        separatorBuilder: (context, index) => Divider(),
+                        itemBuilder: (context, index) {
+                          return ListTile(
+                            title: Text('Numéro de parcelle: ${parcelles[index]['Numero_parcelle']}'),
+                            onTap: () => _editParcelle(context, parcelles[index].id, parcelles[index].data() as Map<String, dynamic>),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
+              );
+            }).toList(),
           ],
         ),
         SizedBox(height: 20),
         ExpansionTile(
-          title: Center(child: Text('Liste des Notations')),
+          title: Center(
+            child: Text(
+              'Liste des Notations',
+              style: TextStyle(color: Theme.of(context).primaryColor), // Utilisation de la couleur primaire de l'application
+            ),
+          ),
           childrenPadding: EdgeInsets.symmetric(horizontal: 16),
           collapsedBackgroundColor: Colors.grey[200],
           children: [
@@ -238,8 +277,272 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
           ],
         ),
+        SizedBox(height: 20),
+        ExpansionTile(
+          title: Center(
+            child: Text(
+              'Liste des Observateurs',
+              style: TextStyle(color: Theme.of(context).primaryColor),
+            ),
+          ),
+          childrenPadding: EdgeInsets.symmetric(horizontal: 16),
+          collapsedBackgroundColor: Colors.grey[200],
+          children: [
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('Observateurs').snapshots(),
+              builder: (context, observateursSnapshot) {
+                if (observateursSnapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                if (observateursSnapshot.hasError) {
+                  return Center(child: Text('Erreur: ${observateursSnapshot.error}'));
+                }
+
+                final observateurs = observateursSnapshot.data!.docs;
+
+                return ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: observateurs.length,
+                  separatorBuilder: (context, index) => Divider(),
+                  itemBuilder: (context, index) {
+                    final observateur = observateurs[index];
+                    return ListTile(
+                      title: Text('${observateur['Nom']} ${observateur['Prenom']}'),
+                      subtitle: Text('Email: ${observateur['email']}'),
+                      trailing: IconButton(
+                        icon: Icon(Icons.edit),
+                        onPressed: () => _editObservateur(context, observateur.id, observateur),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
       ],
     ),
+  );
+}
+
+void _editObservateur(BuildContext context, String observateurId, DocumentSnapshot observateur) {
+  final TextEditingController nomController = TextEditingController(text: observateur['Nom']);
+  final TextEditingController prenomController = TextEditingController(text: observateur['Prenom']);
+  final TextEditingController emailController = TextEditingController(text: observateur['email']);
+  
+  // Check if observateur is affiliated with multiple lieux
+  bool hasMultipleLieux = observateur['Lieux'].length > 1;
+
+  String selectedLieuId = observateur['Lieux'][0].id;
+
+  // If observateur has multiple lieux, disable the selection
+  bool isLieuSelectionEnabled = !hasMultipleLieux;
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Modifier l\'observateur'),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[
+                  TextField(
+                    controller: nomController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom',
+                    ),
+                  ),
+                  TextField(
+                    controller: prenomController,
+                    decoration: const InputDecoration(
+                      labelText: 'Prénom',
+                    ),
+                  ),
+                  TextField(
+                    controller: emailController,
+                    decoration: const InputDecoration(
+                      labelText: 'Email',
+                    ),
+                  ),
+                  DropdownButtonFormField(
+                    value: selectedLieuId,
+                    items: availableLieux.map((lieu) {
+                      return DropdownMenuItem(
+                        value: lieu['id'],
+                        child: Text(lieu['nom']),
+                      );
+                    }).toList(),
+                    onChanged: isLieuSelectionEnabled ? (value) {
+                      setState(() {
+                        selectedLieuId = value.toString();
+                      });
+                    } : null, // Disable onChanged if multiple lieux
+                    decoration: InputDecoration(
+                      labelText: 'Sélectionnez le lieu',
+                      enabled: isLieuSelectionEnabled,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Enregistrer'),
+                onPressed: () async {
+                  final String nom = nomController.text.trim();
+                  final String prenom = prenomController.text.trim();
+                  final String email = emailController.text.trim();
+                  final String lieuId = selectedLieuId;
+
+                  if (nom.isNotEmpty && prenom.isNotEmpty && email.isNotEmpty && lieuId.isNotEmpty) {
+                    try {
+                      await FirebaseFirestore.instance.collection('Observateurs').doc(observateurId).update({
+                        'Nom': nom,
+                        'Prenom': prenom,
+                        'email': email,
+                        'Lieux': [
+                          FirebaseFirestore.instance.collection('Lieux').doc(lieuId)
+                        ],
+                      });
+
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Observateur mis à jour avec succès'),
+                        ),
+                      );
+                    } catch (error) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Erreur lors de la mise à jour de l\'observateur: $error'),
+                        ),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Veuillez remplir tous les champs'),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+
+void _editParcelle(BuildContext context, String parcelleId, Map<String, dynamic> parcelle) {
+  final TextEditingController numeroParcelleController = TextEditingController(text: parcelle['Numero_parcelle'].toString());
+  String selectedLieuId = parcelle['Lieu'].id;
+  List<String> selectedNotations = List<String>.from(parcelle['Notations']);
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Modifier la parcelle'),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[
+                  TextField(
+                    controller: numeroParcelleController,
+                    decoration: const InputDecoration(
+                      labelText: 'Numéro de la parcelle',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  DropdownButtonFormField(
+                    value: selectedLieuId,
+                    items: availableLieux.map((lieu) {
+                      return DropdownMenuItem(
+                        value: lieu['id'],
+                        child: Text(lieu['nom']),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      setState(() {
+                        selectedLieuId = value.toString();
+                      });
+                    },
+                    decoration: const InputDecoration(
+                      labelText: 'Sélectionnez le lieu',
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: availableNotations.map((notation) {
+                      return CheckboxListTile(
+                        title: Text(notation['nom']),
+                        value: selectedNotations.contains(notation['nom']),
+                        onChanged: (bool? value) {
+                          setState(() {
+                            if (value!) {
+                              selectedNotations.add(notation['nom']);
+                            } else {
+                              selectedNotations.remove(notation['nom']);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Annuler'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: const Text('Modifier'),
+                onPressed: () {
+                  final int? numeroParcelle = int.tryParse(numeroParcelleController.text);
+
+                  if (numeroParcelle != null && selectedLieuId.isNotEmpty) {
+                    final Map<String, dynamic> updatedParcelle = {
+                      'Numero_parcelle': numeroParcelle,
+                      'Lieu': FirebaseFirestore.instance.doc('Lieux/$selectedLieuId'),
+                      'Notations': selectedNotations,
+                    };
+
+                    FirebaseFirestore.instance
+                        .collection('Parcelles')
+                        .doc(parcelleId)
+                        .update(updatedParcelle)
+                        .then((_) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Parcelle modifiée avec succès')),
+                      );
+                    }).catchError((error) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erreur lors de la modification de la parcelle: $error')),
+                      );
+                    });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Veuillez remplir tous les champs avec des valeurs valides')),
+                    );
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      );
+    },
   );
 }
 
@@ -264,49 +567,49 @@ Widget _buildNotationItem(BuildContext context, DocumentSnapshot document) {
 }
 
 
- Widget _buildParcelleItem(BuildContext context, DocumentSnapshot document) {
-    Map<String, dynamic> parcelle = document.data() as Map<String, dynamic>;
-    String lieuId = parcelle['Lieu'].id;
+//  Widget _buildParcelleItem(BuildContext context, DocumentSnapshot document) {
+//     Map<String, dynamic> parcelle = document.data() as Map<String, dynamic>;
+//     String lieuId = parcelle['Lieu'].id;
 
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('Lieux').doc(lieuId).get(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return ListTile(
-            title: Text('Parcelle ${parcelle['Numero_parcelle']}'),
-            subtitle: Text('Chargement du lieu...'),
-          );
-        }
-        if (snapshot.hasError || !snapshot.hasData) {
-          return ListTile(
-            title: Text('Parcelle ${parcelle['Numero_parcelle']}'),
-            subtitle: Text('Erreur lors du chargement du lieu'),
-          );
-        }
+//     return FutureBuilder<DocumentSnapshot>(
+//       future: FirebaseFirestore.instance.collection('Lieux').doc(lieuId).get(),
+//       builder: (context, snapshot) {
+//         if (snapshot.connectionState == ConnectionState.waiting) {
+//           return ListTile(
+//             title: Text('Parcelle ${parcelle['Numero_parcelle']}'),
+//             subtitle: Text('Chargement du lieu...'),
+//           );
+//         }
+//         if (snapshot.hasError || !snapshot.hasData) {
+//           return ListTile(
+//             title: Text('Parcelle ${parcelle['Numero_parcelle']}'),
+//             subtitle: Text('Erreur lors du chargement du lieu'),
+//           );
+//         }
 
-        Map<String, dynamic> lieu = snapshot.data!.data() as Map<String, dynamic>;
-        String nomLieu = lieu['Nom_lieu'];
+//         Map<String, dynamic> lieu = snapshot.data!.data() as Map<String, dynamic>;
+//         String nomLieu = lieu['Nom_lieu'];
 
-        return ListTile(
-          title: Text('Parcelle ${parcelle['Numero_parcelle']}'),
-          subtitle: Text('Lieu: $nomLieu'),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              IconButton(
-                icon: Icon(Icons.edit),
-                onPressed: () => _editParcelle(context, document.id, parcelle),
-              ),
-              IconButton(
-                icon: Icon(Icons.edit_location),
-                onPressed: () => _editLieu(context, lieuId, nomLieu, nombreParcelles),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
+//         return ListTile(
+//           title: Text('Parcelle ${parcelle['Numero_parcelle']}'),
+//           subtitle: Text('Lieu: $nomLieu'),
+//           trailing: Row(
+//             mainAxisSize: MainAxisSize.min,
+//             children: [
+//               IconButton(
+//                 icon: Icon(Icons.edit),
+//                 onPressed: () => _editParcelle(context, document.id, parcelle),
+//               ),
+//               IconButton(
+//                 icon: Icon(Icons.edit_location),
+//                 onPressed: () => _editLieu(context, lieuId, nomLieu, nombreParcelles),
+//               ),
+//             ],
+//           ),
+//         );
+//       },
+//     );
+//   }
 
 Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
   Map<String, dynamic> lieu = document.data() as Map<String, dynamic>;
@@ -612,7 +915,7 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
                   TextField(
                     controller: observateurIdController,
                     decoration: const InputDecoration(
-                      labelText: 'Numéro de l\'observateur',
+                      labelText: 'Acronyme',
                     ),
                   ),
                   TextField(
@@ -831,113 +1134,113 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
   );
 }
 
-  void _editParcelle(BuildContext context, String parcelleId, Map<String, dynamic> parcelle) {
-  final TextEditingController numeroParcelleController = TextEditingController(text: parcelle['Numero_parcelle'].toString());
-  String selectedLieuId = parcelle['Lieu'].id;
-  List<String> selectedNotations = List<String>.from(parcelle['Notations']);
+//   void _editParcelle(BuildContext context, String parcelleId, Map<String, dynamic> parcelle) {
+//   final TextEditingController numeroParcelleController = TextEditingController(text: parcelle['Numero_parcelle'].toString());
+//   String selectedLieuId = parcelle['Lieu'].id;
+//   List<String> selectedNotations = List<String>.from(parcelle['Notations']);
 
-  showDialog(
-    context: context,
-    builder: (BuildContext context) {
-      return StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
-          return AlertDialog(
-            title: const Text('Modifier la parcelle'),
-            content: SingleChildScrollView(
-              child: ListBody(
-                children: <Widget>[
-                  TextField(
-                    controller: numeroParcelleController,
-                    decoration: const InputDecoration(
-                      labelText: 'Numéro de la parcelle',
-                    ),
-                    keyboardType: TextInputType.number,
-                  ),
-                  DropdownButtonFormField(
-                    value: selectedLieuId,
-                    items: availableLieux.map((lieu) {
-                      return DropdownMenuItem(
-                        value: lieu['id'],
-                        child: Text(lieu['nom']),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      setState(() {
-                        selectedLieuId = value.toString();
-                      });
-                    },
-                    decoration: const InputDecoration(
-                      labelText: 'Sélectionnez le lieu',
-                    ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: availableNotations.map((notation) {
-                      return CheckboxListTile(
-                        title: Text(notation['nom']),
-                        value: selectedNotations.contains(notation['nom']),
-                        onChanged: (bool? value) {
-                          setState(() {
-                            if (value!) {
-                              selectedNotations.add(notation['nom']);
-                            } else {
-                              selectedNotations.remove(notation['nom']);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Annuler'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              TextButton(
-                child: const Text('Modifier'),
-                onPressed: () {
-                  final int? numeroParcelle = int.tryParse(numeroParcelleController.text);
+//   showDialog(
+//     context: context,
+//     builder: (BuildContext context) {
+//       return StatefulBuilder(
+//         builder: (BuildContext context, StateSetter setState) {
+//           return AlertDialog(
+//             title: const Text('Modifier la parcelle'),
+//             content: SingleChildScrollView(
+//               child: ListBody(
+//                 children: <Widget>[
+//                   TextField(
+//                     controller: numeroParcelleController,
+//                     decoration: const InputDecoration(
+//                       labelText: 'Numéro de la parcelle',
+//                     ),
+//                     keyboardType: TextInputType.number,
+//                   ),
+//                   DropdownButtonFormField(
+//                     value: selectedLieuId,
+//                     items: availableLieux.map((lieu) {
+//                       return DropdownMenuItem(
+//                         value: lieu['id'],
+//                         child: Text(lieu['nom']),
+//                       );
+//                     }).toList(),
+//                     onChanged: (value) {
+//                       setState(() {
+//                         selectedLieuId = value.toString();
+//                       });
+//                     },
+//                     decoration: const InputDecoration(
+//                       labelText: 'Sélectionnez le lieu',
+//                     ),
+//                   ),
+//                   Column(
+//                     crossAxisAlignment: CrossAxisAlignment.start,
+//                     children: availableNotations.map((notation) {
+//                       return CheckboxListTile(
+//                         title: Text(notation['nom']),
+//                         value: selectedNotations.contains(notation['nom']),
+//                         onChanged: (bool? value) {
+//                           setState(() {
+//                             if (value!) {
+//                               selectedNotations.add(notation['nom']);
+//                             } else {
+//                               selectedNotations.remove(notation['nom']);
+//                             }
+//                           });
+//                         },
+//                       );
+//                     }).toList(),
+//                   ),
+//                 ],
+//               ),
+//             ),
+//             actions: <Widget>[
+//               TextButton(
+//                 child: const Text('Annuler'),
+//                 onPressed: () {
+//                   Navigator.of(context).pop();
+//                 },
+//               ),
+//               TextButton(
+//                 child: const Text('Modifier'),
+//                 onPressed: () {
+//                   final int? numeroParcelle = int.tryParse(numeroParcelleController.text);
 
-                  if (numeroParcelle != null && selectedLieuId.isNotEmpty) {
-                    final Map<String, dynamic> updatedParcelle = {
-                      'Numero_parcelle': numeroParcelle,
-                      'Lieu': FirebaseFirestore.instance.doc('Lieux/$selectedLieuId'),
-                      'Notations': selectedNotations,
-                    };
+//                   if (numeroParcelle != null && selectedLieuId.isNotEmpty) {
+//                     final Map<String, dynamic> updatedParcelle = {
+//                       'Numero_parcelle': numeroParcelle,
+//                       'Lieu': FirebaseFirestore.instance.doc('Lieux/$selectedLieuId'),
+//                       'Notations': selectedNotations,
+//                     };
 
-                    FirebaseFirestore.instance
-                        .collection('Parcelles')
-                        .doc(parcelleId)
-                        .update(updatedParcelle)
-                        .then((_) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Parcelle modifiée avec succès')),
-                      );
-                    }).catchError((error) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Erreur lors de la modification de la parcelle: $error')),
-                      );
-                    });
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Veuillez remplir tous les champs avec des valeurs valides')),
-                    );
-                  }
-                },
-              ),
-            ],
-          );
-        },
-      );
-    },
-  );
-}
+//                     FirebaseFirestore.instance
+//                         .collection('Parcelles')
+//                         .doc(parcelleId)
+//                         .update(updatedParcelle)
+//                         .then((_) {
+//                       Navigator.of(context).pop();
+//                       ScaffoldMessenger.of(context).showSnackBar(
+//                         const SnackBar(content: Text('Parcelle modifiée avec succès')),
+//                       );
+//                     }).catchError((error) {
+//                       ScaffoldMessenger.of(context).showSnackBar(
+//                         SnackBar(content: Text('Erreur lors de la modification de la parcelle: $error')),
+//                       );
+//                     });
+//                   } else {
+//                     ScaffoldMessenger.of(context).showSnackBar(
+//                       const SnackBar(content: Text('Veuillez remplir tous les champs avec des valeurs valides')),
+//                     );
+//                   }
+//                 },
+//               ),
+//             ],
+//           );
+//         },
+//       );
+//     },
+//   );
+// }
 
 void _editLieu(BuildContext context, String lieuId, String nomLieu, int nombreParcelles) {
   final TextEditingController nomLieuController = TextEditingController(text: nomLieu);
