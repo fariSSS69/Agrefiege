@@ -1384,80 +1384,120 @@ void _editLieu(BuildContext context, String lieuId, String nomLieu, int nombrePa
 }
 void _editNotation(BuildContext context, String notationId, Map<String, dynamic> notationData) {
   final TextEditingController nomNotationController = TextEditingController(text: notationData['nom']);
-  final TextEditingController typeNotationController = TextEditingController(text: notationData['type']);
+  String selectedType = notationData['type'];
 
   showDialog(
     context: context,
     builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Modifier la notation'),
-        content: SingleChildScrollView(
-          child: ListBody(
-            children: <Widget>[
-              TextField(
-                controller: nomNotationController,
-                decoration: const InputDecoration(
-                  labelText: 'Nom de la notation',
-                ),
+      return StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Modifier la notation'),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[
+                  TextField(
+                    controller: nomNotationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Nom de la notation',
+                    ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  Text('Type de notation:'),
+                  RadioListTile<String>(
+                    title: const Text('note 0 à 3'),
+                    value: 'note 3',
+                    groupValue: selectedType,
+                    onChanged: (String? value) {
+                      setState(() {
+                        selectedType = value!;
+                      });
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('note 0 à 4'),
+                    value: 'note 4',
+                    groupValue: selectedType,
+                    onChanged: (String? value) {
+                      setState(() {
+                        selectedType = value!;
+                      });
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('note 1 à 9'),
+                    value: 'note 9',
+                    groupValue: selectedType,
+                    onChanged: (String? value) {
+                      setState(() {
+                        selectedType = value!;
+                      });
+                    },
+                  ),
+                  RadioListTile<String>(
+                    title: const Text('note libre'),
+                    value: 'libre',
+                    groupValue: selectedType,
+                    onChanged: (String? value) {
+                      setState(() {
+                        selectedType = value!;
+                      });
+                    },
+                  ),
+                ],
               ),
-              TextField(
-                controller: typeNotationController,
-                decoration: const InputDecoration(
-                  labelText: 'Type de notation (Note 3 = 0 à 3) / (Note 4 = 0 à 4) / (Note 9 = 1 à 9) / (Note libre = libre)  ',
-                ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Annuler'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: const Text('Enregistrer'),
+                onPressed: () {
+                  final String nomNotation = nomNotationController.text.trim();
+
+                  if (nomNotation.isNotEmpty && selectedType.isNotEmpty) {
+                    FirebaseFirestore.instance
+                        .collection('Notations')
+                        .doc(notationId)
+                        .update({
+                          'nom': nomNotation,
+                          'type': selectedType,
+                        })
+                        .then((value) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Notation modifiée avec succès')),
+                          );
+                        })
+                        .catchError((error) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                                content: Text(
+                                    'Erreur lors de la modification de la notation: $error')),
+                          );
+                        });
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text(
+                              'Veuillez remplir tous les champs avec des valeurs valides')),
+                    );
+                  }
+                },
               ),
             ],
-          ),
-        ),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Annuler'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-          TextButton(
-            child: const Text('Enregistrer'),
-            onPressed: () {
-              final String nomNotation = nomNotationController.text.trim();
-              final String typeNotation = typeNotationController.text.trim();
-
-              if (nomNotation.isNotEmpty && typeNotation.isNotEmpty) {
-                FirebaseFirestore.instance
-                    .collection('Notations')
-                    .doc(notationId)
-                    .update({
-                      'nom': nomNotation,
-                      'type': typeNotation,
-                    })
-                    .then((value) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('Notation modifiée avec succès')),
-                      );
-                    })
-                    .catchError((error) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content: Text(
-                                'Erreur lors de la modification de la notation: $error')),
-                      );
-                    });
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                      content: Text(
-                          'Veuillez remplir tous les champs avec des valeurs valides')),
-                );
-              }
-            },
-          ),
-        ],
+          );
+        },
       );
     },
   );
 }
+
 
 }
 
