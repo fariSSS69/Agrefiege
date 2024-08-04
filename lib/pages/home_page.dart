@@ -547,13 +547,26 @@ void _editParcelle(BuildContext context, String parcelleId, Map<String, dynamic>
 }
 
 
-
 Widget _buildNotationItem(BuildContext context, DocumentSnapshot document) {
   Map<String, dynamic> notation = document.data() as Map<String, dynamic>;
 
+  // Fonction pour mapper les types de notes aux plages respectives
+  String getNotationRange(String type) {
+    switch (type) {
+      case 'note 3':
+        return 'note 0 à 3';
+      case 'note 4':
+        return 'note 0 à 4';
+      case 'note 9':
+        return 'note 1 à 9';
+      default:
+        return type; // Retourne le type inchangé s'il ne correspond à aucun cas
+    }
+  }
+
   return ListTile(
     title: Text(notation['nom']),
-    subtitle: Text('Type: ${notation['type']}'),
+    subtitle: Text('Type: ${getNotationRange(notation['type'])}'),
     trailing: Row(
       mainAxisSize: MainAxisSize.min,
       children: [
