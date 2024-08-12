@@ -76,34 +76,37 @@ class _ObservationPageState extends State<ObservationPage> {
     });
   }
 
-  Future<List<Map<String, dynamic>>> _getNotationData(String parcelleId) async {
-    final DocumentSnapshot<Map<String, dynamic>> parcelleSnapshot =
-        await FirebaseFirestore.instance.collection('Parcelles').doc(parcelleId).get();
+ Future<List<Map<String, dynamic>>> _getNotationData(String parcelleId) async {
+  final DocumentSnapshot<Map<String, dynamic>> parcelleSnapshot =
+      await FirebaseFirestore.instance.collection('Parcelles').doc(parcelleId).get();
 
-    List<Map<String, dynamic>> notationsWithTypes = [];
+  List<Map<String, dynamic>> notationsWithTypes = [];
 
-    if (parcelleSnapshot.exists) {
-      List<dynamic> notations = parcelleSnapshot.data()!['Notations'];
+  if (parcelleSnapshot.exists) {
+    List<dynamic> notations = parcelleSnapshot.data()!['Notations'];
 
-      for (String nomNotation in notations) {
-        final DocumentSnapshot<Map<String, dynamic>> notationSnapshot =
-            await FirebaseFirestore.instance.collection('Notations').doc(nomNotation).get();
+    for (String nomNotation in notations) {
+      final DocumentSnapshot<Map<String, dynamic>> notationSnapshot =
+          await FirebaseFirestore.instance.collection('Notations').doc(nomNotation).get();
 
-        if (notationSnapshot.exists) {
-          notationsWithTypes.add({
-            'nom': nomNotation,
-            'type': notationSnapshot.data()!['type']
-          });
-        } else {
-          print('Notation $nomNotation does not exist.');
-        }
+      if (notationSnapshot.exists) {
+        var notationData = notationSnapshot.data()!;
+        print('Fetched Notation Data for $nomNotation: $notationData'); // Debug: Print fetched data
+        notationsWithTypes.add({
+          'nom': nomNotation,
+          'type': notationData['type'],
+          'alias': notationData['alias'] // Add alias to the data
+        });
+      } else {
+        print('Notation $nomNotation does not exist.');
       }
-    } else {
-      print('Parcelle with ID $parcelleId does not exist.');
     }
-
-    return notationsWithTypes;
+  } else {
+    print('Parcelle with ID $parcelleId does not exist.');
   }
+
+  return notationsWithTypes;
+}
 
 Future<void> _saveData() async {
     bool isSaved = false;
@@ -114,9 +117,9 @@ Future<void> _saveData() async {
       final TextEditingController noteController = row['selectedNotationType'] == 'libre' ? row['noteController'] : row['Note'];
       final String noteText = noteController.text;
 
-      print('Parcelle : $parcelleId');
-      print('Notation : $notationName');
-      print('Note : $noteText');
+      // print('Parcelle : $parcelleId');
+      // print('Notation : $notationName');
+      // print('Note : $noteText');
 
       if (parcelleId != null && notationName != null && noteText.isNotEmpty) {
         final List<Map<String, dynamic>> notationData = await _getNotationData(parcelleId);
@@ -508,7 +511,7 @@ Future<bool> _showReplaceDialog() async {
                                             ),
                                           ),
                                          
-
+// Ici gerer lecart
 TableCell(
   child: Container(
     height: 56,
@@ -531,7 +534,6 @@ TableCell(
                   setState(() {
                     row['notation'] = newValue;
                     row['Note'] = TextEditingController();
-                    // Réinitialisez le type de notation sélectionné car il peut avoir changé
                     row['selectedNotationType'] = notationsData.firstWhere(
                       (notation) => notation['nom'] == newValue,
                       orElse: () => {'type': null},
@@ -542,7 +544,20 @@ TableCell(
                   (Map<String, dynamic> notation) {
                     return DropdownMenuItem<String>(
                       value: notation['nom'],
-                      child: Text(notation['nom']),
+                      child: ConstrainedBox(
+                        constraints: BoxConstraints(maxWidth: 150), // Ajustez selon vos besoins
+                        child: Tooltip(
+                          message: (notation['alias'] != null && notation['alias']!.isNotEmpty)
+                            ? '${notation['nom']} (${notation['alias']})'
+                            : notation['nom'],
+                          child: Text(
+                            (notation['alias'] != null && notation['alias']!.isNotEmpty)
+                              ? '${notation['nom']} (${notation['alias']})'
+                              : notation['nom'],
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ),
                     );
                   },
                 ).toList(),
@@ -553,6 +568,9 @@ TableCell(
       : Container(),
   ),
 ),
+
+
+
 TableCell(
   child: row['notation'] != null && row['selectedNotationType'] != null
     ? Container(

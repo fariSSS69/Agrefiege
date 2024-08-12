@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:motion_tab_bar/MotionTabBarController.dart';
 import 'package:motion_tab_bar/MotionTabBar.dart';
+import 'package:flutter/services.dart';
+
 
 void main() {
   runApp(MyApp());
@@ -772,7 +774,7 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
 
   void _addNewParcelle(BuildContext context) {
   final TextEditingController numeroParcelleController = TextEditingController();
-  
+
   Future<void> _refreshNotations(StateSetter setState) async {
     final notationsSnapshot = await FirebaseFirestore.instance.collection('Notations').get();
     setState(() {
@@ -793,9 +795,13 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
                   TextField(
                     controller: numeroParcelleController,
                     decoration: const InputDecoration(
-                      labelText: 'Numéro de la parcelle',
+                      labelText: 'Identifiant de la parcelle',
                     ),
-                    keyboardType: TextInputType.number,
+                    keyboardType: TextInputType.text, // Permet la saisie de texte avec des caractères spéciaux
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(RegExp(r'[0-9]')), // Autorise uniquement les chiffres, les points, les virgules et les slashes
+                    ],
+                    // Optionnel: Vous pouvez ajouter un validateur si vous avez un formulaire
                   ),
                   DropdownButtonFormField(
                     value: selectedLieuId,
@@ -855,11 +861,14 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
               TextButton(
                 child: const Text('Ajouter'),
                 onPressed: () {
-                  final int? numeroParcelle = int.tryParse(numeroParcelleController.text);
+                  final String parcelleId = numeroParcelleController.text.trim();
 
-                  if (numeroParcelle != null && selectedLieuId.isNotEmpty) {
-                    final String parcelleId = numeroParcelle.toString();
-
+                  // Vérifier si le texte contient des lettres
+                  if (RegExp(r'[a-zA-Z]').hasMatch(parcelleId)) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Le numéro de la parcelle ne peut contenir que des chiffres et des caractères spéciaux (.,/)')),
+                    );
+                  } else if (parcelleId.isNotEmpty && selectedLieuId.isNotEmpty) {
                     FirebaseFirestore.instance
                         .collection('Parcelles')
                         .doc(parcelleId)
@@ -871,7 +880,7 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
                         );
                       } else {
                         Map<String, dynamic> parcelleData = {
-                          'Numero_parcelle': numeroParcelle,
+                          'Numero_parcelle': parcelleId,
                           'Lieu': FirebaseFirestore.instance.doc('Lieux/$selectedLieuId'),
                           'Notations': selectedNotations
                         };
@@ -906,6 +915,7 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
     },
   );
 }
+
 
 
   void _createNewObservateur(BuildContext context) {
@@ -1053,6 +1063,7 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
 
   void _addNewNotation(BuildContext context) {
   final TextEditingController nomNotationController = TextEditingController();
+  final TextEditingController aliasNotationController = TextEditingController(); // Nouveau contrôleur pour l'alias
   bool isLibreNotation = false;
   int? amplitude = null;
 
@@ -1070,6 +1081,12 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
                     controller: nomNotationController,
                     decoration: const InputDecoration(
                       labelText: 'Nom de la notation',
+                    ),
+                  ),
+                  TextField(
+                    controller: aliasNotationController, // Nouveau champ TextField pour l'alias
+                    decoration: const InputDecoration(
+                      labelText: 'Alias',
                     ),
                   ),
                   Row(
@@ -1124,8 +1141,9 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
                 child: const Text('Ajouter'),
                 onPressed: () {
                   final String nomNotation = nomNotationController.text.trim();
+                  final String aliasNotation = aliasNotationController.text.trim(); // Récupération de l'alias
 
-                  if (nomNotation.isNotEmpty) {
+                  if (nomNotation.isNotEmpty && aliasNotation.isNotEmpty) { // Validation de l'alias également
                     String typeNotation = isLibreNotation ? 'libre' : 'note';
 
                     if (!isLibreNotation && amplitude != null) {
@@ -1148,6 +1166,7 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
                             .doc(nomNotation)
                             .set({
                               'nom': nomNotation,
+                              'alias': aliasNotation, // Sauvegarde de l'alias
                               'type': typeNotation,
                             })
                             .then((value) {
@@ -1183,6 +1202,7 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
     },
   );
 }
+
 
 
 //   void _editParcelle(BuildContext context, String parcelleId, Map<String, dynamic> parcelle) {
