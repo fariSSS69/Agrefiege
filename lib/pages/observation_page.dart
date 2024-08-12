@@ -75,6 +75,11 @@ class _ObservationPageState extends State<ObservationPage> {
       }
     });
   }
+Future<List<Map<String, dynamic>>> _getAmplitudes() async {
+  final QuerySnapshot<Map<String, dynamic>> snapshot =
+      await FirebaseFirestore.instance.collection('Amplitudes').get();
+  return snapshot.docs.map((doc) => doc.data()).toList();
+}
 
  Future<List<Map<String, dynamic>>> _getNotationData(String parcelleId) async {
   final DocumentSnapshot<Map<String, dynamic>> parcelleSnapshot =
@@ -109,80 +114,73 @@ class _ObservationPageState extends State<ObservationPage> {
 }
 
 Future<void> _saveData() async {
-    bool isSaved = false;
-    for (int i = 0; i < _rows.length; i++) {
-      final row = _rows[i];
-      final parcelleId = row['parcelle'];
-      final notationName = row['notation'];
-      final TextEditingController noteController = row['selectedNotationType'] == 'libre' ? row['noteController'] : row['Note'];
-      final String noteText = noteController.text;
+  bool isSaved = false;
+  final List<Map<String, dynamic>> amplitudes = await _getAmplitudes(); // Assurez-vous que cette ligne est incluse au début de la méthode
 
-      // print('Parcelle : $parcelleId');
-      // print('Notation : $notationName');
-      // print('Note : $noteText');
+  for (int i = 0; i < _rows.length; i++) {
+    final row = _rows[i];
+    final parcelleId = row['parcelle'];
+    final notationName = row['notation'];
+    final TextEditingController noteController = row['selectedNotationType'] == 'libre' ? row['noteController'] : row['Note'];
+    final String noteText = noteController.text;
 
-      if (parcelleId != null && notationName != null && noteText.isNotEmpty) {
-        final List<Map<String, dynamic>> notationData = await _getNotationData(parcelleId);
-        final Map<String, dynamic>? notationInfo = notationData.firstWhere(
-            (notation) => notation['nom'] == notationName,
-            orElse: () => {'type': null});
-        final String? notationType = notationInfo?['type'];
+    if (parcelleId != null && notationName != null && noteText.isNotEmpty) {
+      final List<Map<String, dynamic>> notationData = await _getNotationData(parcelleId);
+      final Map<String, dynamic>? notationInfo = notationData.firstWhere(
+          (notation) => notation['nom'] == notationName,
+          orElse: () => {'type': null});
+      final String? notationType = notationInfo?['type'];
 
-        // Validation de la note en fonction du type de notation
-        bool isNoteValid = true;
-        if (notationType == 'note 4') {
-          isNoteValid = int.tryParse(noteText) != null &&
-              int.parse(noteText) >= 0 &&
-              int.parse(noteText) <= 4;
-        } else if (notationType == 'note 3') {
-          isNoteValid = int.tryParse(noteText) != null &&
-              int.parse(noteText) >= 0 &&
-              int.parse(noteText) <= 3;
-        } else if (notationType == 'note 9') {
-          isNoteValid = int.tryParse(noteText) != null &&
-              int.parse(noteText) >= 1 &&
-              int.parse(noteText) <= 9;
-        } else if (notationType == 'libre') {
-          // Aucune validation nécessaire pour le type de notation "libre"
-        } else {
-          // Type de notation non reconnu
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Type de notation non reconnu')),
-          );
-          return;
-        }
+      // Validation de la note en fonction du type de notation
+      bool isNoteValid = true;
+      if (notationType != 'libre') {
+        // Trouver l'amplitude correspondante
+        final amplitude = amplitudes.firstWhere(
+            (amp) => notationType == 'note ${amp['max']}',
+            orElse: () => {'min': 0, 'max': 10}); // Valeur par défaut si non trouvé
 
-        if (!isNoteValid) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('La note pour "$notationName" doit correspondre au type de notation.'),
-            ),
-          );
-          return; // Arrêter l'enregistrement si la note n'est pas valide pour la notation fixe
-        }
+        final min = amplitude['min'] as int;
+        final max = amplitude['max'] as int;
 
-        // Enregistrement des données dans Firestore
-        await _addObservation(parcelleId, notationName, noteText);
-        isSaved = true;
-      } else if (noteText.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vous ne pouvez pas enregistrer des données vides.')),
-        );
-        return;
+        isNoteValid = int.tryParse(noteText) != null &&
+            int.parse(noteText) >= min &&
+            int.parse(noteText) <= max;
       }
-    }
 
-    // Effacer le formulaire et réinitialiser l'état si les données sont enregistrées
-    if (isSaved) {
-      setState(() {
-        _rows.clear();
-        _hasUnsavedData = false;
-      });
+      if (!isNoteValid) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('La note pour "$notationName" doit être entre ${amplitudes.firstWhere(
+                (amp) => notationType == 'note ${amp['max']}')['min']} et ${amplitudes.firstWhere(
+                (amp) => notationType == 'note ${amp['max']}')['max']}.'),
+          ),
+        );
+        return; // Arrêter l'enregistrement si la note n'est pas valide pour la notation fixe
+      }
+
+      // Enregistrement des données dans Firestore
+      await _addObservation(parcelleId, notationName, noteText);
+      isSaved = true;
+    } else if (noteText.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Données enregistrées avec succès')),
+        const SnackBar(content: Text('Vous ne pouvez pas enregistrer des données vides.')),
       );
+      return;
     }
   }
+
+  // Effacer le formulaire et réinitialiser l'état si les données sont enregistrées
+  if (isSaved) {
+    setState(() {
+      _rows.clear();
+      _hasUnsavedData = false;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Données enregistrées avec succès')),
+    );
+  }
+}
+
 
 
 Future<void> _addObservation(String parcelleId, String notation, String note) async {
@@ -573,93 +571,87 @@ TableCell(
 
 TableCell(
   child: row['notation'] != null && row['selectedNotationType'] != null
-    ? Container(
-        height: 56,
-        alignment: Alignment.center,
-        child: row['selectedNotationType'] == 'note 4'
-          ? DropdownButton<String>(
-              value: row['Note'].text.isNotEmpty ? row['Note'].text : null,
+    ? FutureBuilder<List<Map<String, dynamic>>>(
+        future: _getAmplitudes(), // Appel à la méthode pour obtenir les amplitudes
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError) {
+            return Center(child: Text('Erreur de chargement des amplitudes'));
+          }
+
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text('Aucune amplitude disponible'));
+          }
+
+          final List<Map<String, dynamic>> amplitudes = snapshot.data!;
+          final String selectedNotationType = row['selectedNotationType'];
+          final TextEditingController noteController = row['Note'];
+
+          // Trouver l'amplitude correspondante
+          final amplitude = amplitudes.firstWhere(
+            (amp) => amp['nom'] == selectedNotationType,
+            orElse: () => {'valeur_min': 0, 'valeur_max': 10, 'alias_min': '', 'alias_max': ''},
+          );
+
+          final int min = amplitude['valeur_min'] as int;
+          final int max = amplitude['valeur_max'] as int;
+          final String aliasMin = amplitude['alias_min'] as String;
+          final String aliasMax = amplitude['alias_max'] as String;
+
+          print('Amplitude trouvée: min = $min, max = $max, alias_min = $aliasMin, alias_max = $aliasMax'); // Debugging
+
+          return Container(
+            height: 56,
+            alignment: Alignment.center,
+            child: DropdownButton<String>(
+              value: noteController.text.isNotEmpty ? noteController.text : null,
               onChanged: (newValue) {
                 setState(() {
-                  row['Note'].text = newValue ?? '';
+                  noteController.text = newValue ?? '';
                 });
               },
-              items: List<String>.generate(5, (index) => '$index')
+              items: List<String>.generate(max - min + 1, (index) => '${min + index}')
                   .map<DropdownMenuItem<String>>(
                     (String value) {
+                      final int intValue = int.parse(value);
+                      final String displayText = intValue == min
+                          ? '$value ($aliasMin)'
+                          : intValue == max
+                              ? '$value ($aliasMax)'
+                              : value;
+                      
                       return DropdownMenuItem<String>(
                         value: value,
-                        child: Text(value),
+                        child: Text(displayText),
                       );
                     },
                   ).toList(),
-            )
-          : row['selectedNotationType'] == 'note 3'
-              ? DropdownButton<String>(
-                  value: row['Note'].text.isNotEmpty ? row['Note'].text : null,
-                  onChanged: (newValue) {
-                    setState(() {
-                      row['Note'].text = newValue ?? '';
-                    });
-                  },
-                  items: List<String>.generate(4, (index) => '$index')
-                      .map<DropdownMenuItem<String>>(
-                        (String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        },
-                      ).toList(),
-                )
-          : row['selectedNotationType'] == 'note 9'
-              ? DropdownButton<String>(
-                  value: row['Note'].text.isNotEmpty ? row['Note'].text : null,
-                  onChanged: (newValue) {
-                    setState(() {
-                      row['Note'].text = newValue ?? '';
-                    });
-                  },
-                  items: List<String>.generate(9, (index) => '${index + 1}')
-                      .map<DropdownMenuItem<String>>(
-                        (String value) {
-                          return DropdownMenuItem<String>(
-                            value: value,
-                            child: Text(value),
-                          );
-                        },
-                      ).toList(),
-                )
-          : Container(
-              width: 100, // Ajuster la largeur selon vos besoins
-              child: TextField(
-                 controller: row['noteController'],
-                decoration: InputDecoration(
-                  hintText: 'Note',
-                  border: OutlineInputBorder(),
-                ),
-               
-              ),
             ),
+          );
+        },
       )
-    : Container(),
+    : Container(), // Gestion des autres cas où row['notation'] ou row['selectedNotationType'] est null
 ),
 
 
-                                          TableCell(
-                                            child: IconButton(
-                                              icon: const Icon(Icons.delete),
-                                              onPressed: () {
-                                                _deleteRow(_rows.indexOf(row));
-                                              },
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    }),
-                                  ],
-                                ),
-                              ),
+
+                                      TableCell(
+                                        child: IconButton(
+                                          icon: const Icon(Icons.delete),
+                                          onPressed: () {
+                                            _deleteRow(_rows.indexOf(row));
+                                          },
+                                        ),
+                                      ),
+                                    ],
+                                  );
+                                }),
+                              ],
+                            ),
+                          ),
                               Container(
                                 padding:
                                     const EdgeInsets.symmetric(vertical: 16),

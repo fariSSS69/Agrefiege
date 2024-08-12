@@ -150,6 +150,10 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   icon: const Icon(Icons.note_add),
                   onPressed: () => _addNewNotation(context),
                 ),
+                IconButton(
+  icon: Icon(Icons.add_circle_outline, color: Colors.blue),
+  onPressed: () => _addNewAmplitude(context),
+),
               ]
             : null,
       ),
@@ -771,6 +775,114 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
       },
     );
   }
+void _addNewAmplitude(BuildContext context) {
+  final TextEditingController minController = TextEditingController();
+  final TextEditingController maxController = TextEditingController();
+  final TextEditingController aliasMinController = TextEditingController();
+  final TextEditingController aliasMaxController = TextEditingController();
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Ajouter une nouvelle amplitude de notation'),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[
+                  TextField(
+                    controller: minController,
+                    decoration: const InputDecoration(
+                      labelText: 'Valeur minimale',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextField(
+                    controller: maxController,
+                    decoration: const InputDecoration(
+                      labelText: 'Valeur maximale',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextField(
+                    controller: aliasMinController,
+                    decoration: const InputDecoration(
+                      labelText: 'Alias pour la valeur minimale',
+                    ),
+                  ),
+                  TextField(
+                    controller: aliasMaxController,
+                    decoration: const InputDecoration(
+                      labelText: 'Alias pour la valeur maximale',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Annuler'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: const Text('Ajouter'),
+                onPressed: () {
+                  final String minValue = minController.text.trim();
+                  final String maxValue = maxController.text.trim();
+                  final String aliasMin = aliasMinController.text.trim();
+                  final String aliasMax = aliasMaxController.text.trim();
+
+                  if (minValue.isNotEmpty && maxValue.isNotEmpty) {
+                    final int min = int.tryParse(minValue) ?? 0;
+                    final int max = int.tryParse(maxValue) ?? 0;
+
+                    if (min < max) {
+                      final String nomAmplitude = 'note $max';
+
+                      Map<String, dynamic> amplitudeData = {
+                        'valeur_min': min,
+                        'valeur_max': max,
+                        'alias_min': aliasMin.isEmpty ? null : aliasMin,
+                        'alias_max': aliasMax.isEmpty ? null : aliasMax,
+                        'nom': nomAmplitude
+                      };
+
+                      FirebaseFirestore.instance
+                          .collection('Amplitudes')
+                          .doc(nomAmplitude)
+                          .set(amplitudeData)
+                          .then((_) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Amplitude ajoutée avec succès')),
+                        );
+                      }).catchError((error) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Erreur lors de l\'ajout de l\'amplitude: $error')),
+                        );
+                      });
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('La valeur minimale doit être inférieure à la valeur maximale')),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Veuillez remplir toutes les valeurs')),
+                    );
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
 
   void _addNewParcelle(BuildContext context) {
   final TextEditingController numeroParcelleController = TextEditingController();
@@ -1058,150 +1170,147 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
 
 
 
-
-
-
-  void _addNewNotation(BuildContext context) {
+void _addNewNotation(BuildContext context) {
   final TextEditingController nomNotationController = TextEditingController();
-  final TextEditingController aliasNotationController = TextEditingController(); // Nouveau contrôleur pour l'alias
+  final TextEditingController aliasNotationController = TextEditingController();
   bool isLibreNotation = false;
-  int? amplitude = null;
+  int? amplitude;
 
   showDialog(
     context: context,
-    builder: (BuildContext context) {
-      return StatefulBuilder(
-        builder: (BuildContext context, StateSetter setState) {
-          return AlertDialog(
-            title: const Text('Ajouter une nouvelle notation'),
-            content: SingleChildScrollView(
-              child: ListBody(
-                children: <Widget>[
-                  TextField(
-                    controller: nomNotationController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nom de la notation',
-                    ),
-                  ),
-                  TextField(
-                    controller: aliasNotationController, // Nouveau champ TextField pour l'alias
-                    decoration: const InputDecoration(
-                      labelText: 'Alias',
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: isLibreNotation,
-                        onChanged: (value) {
-                          setState(() {
-                            isLibreNotation = value!;
-                          });
-                        },
-                      ),
-                      Text('Notation libre'),
-                    ],
-                  ),
-                  if (!isLibreNotation) ...[
-                    DropdownButton<int>(
-                      value: amplitude,
-                      hint: Text('Choisir l\'amplitude'),
-                      items: [
-                        DropdownMenuItem(
-                          value: 3,
-                          child: Text('0 à 3'),
-                        ),
-                        DropdownMenuItem(
-                          value: 4,
-                          child: Text('0 à 4'),
-                        ),
-                        DropdownMenuItem(
-                          value: 9,
-                          child: Text('1 à 9'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        setState(() {
-                          amplitude = value;
-                        });
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            actions: <Widget>[
-              TextButton(
-                child: const Text('Annuler'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-              ),
-              TextButton(
-                child: const Text('Ajouter'),
-                onPressed: () {
-                  final String nomNotation = nomNotationController.text.trim();
-                  final String aliasNotation = aliasNotationController.text.trim(); // Récupération de l'alias
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        title: const Text('Ajouter une nouvelle notation'),
+        content: FutureBuilder<QuerySnapshot>(
+          future: FirebaseFirestore.instance.collection('Amplitudes').get(),
+          builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
 
-                  if (nomNotation.isNotEmpty && aliasNotation.isNotEmpty) { // Validation de l'alias également
-                    String typeNotation = isLibreNotation ? 'libre' : 'note';
+            if (snapshot.hasError) {
+              return Text('Erreur: ${snapshot.error}');
+            }
 
-                    if (!isLibreNotation && amplitude != null) {
-                      typeNotation = 'note $amplitude';
-                    }
-
-                    FirebaseFirestore.instance
-                        .collection('Notations')
-                        .doc(nomNotation)
-                        .get()
-                        .then((docSnapshot) {
-                      if (docSnapshot.exists) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('La notation existe déjà')),
-                        );
-                      } else {
-                        FirebaseFirestore.instance
-                            .collection('Notations')
-                            .doc(nomNotation)
-                            .set({
-                              'nom': nomNotation,
-                              'alias': aliasNotation, // Sauvegarde de l'alias
-                              'type': typeNotation,
-                            })
-                            .then((value) {
-                              Navigator.of(context).pop();
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content:
-                                        Text('Notation ajoutée avec succès')),
-                              );
-                            })
-                            .catchError((error) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(
-                                        'Erreur lors de l\'ajout de la notation: $error')),
-                              );
-                            });
-                      }
-                    });
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text(
-                              'Veuillez remplir tous les champs avec des valeurs valides')),
+            if (snapshot.hasData && snapshot.data != null) {
+              final List<DropdownMenuItem<int>> amplitudeItems = snapshot.data!.docs
+                  .map((DocumentSnapshot document) {
+                    final Map<String, dynamic> data = document.data() as Map<String, dynamic>;
+                    final int minValue = data['valeur_min'];
+                    final int maxValue = data['valeur_max'];
+                    return DropdownMenuItem<int>(
+                      value: maxValue,
+                      child: Text('$minValue à $maxValue'),
                     );
-                  }
+                  }).toList();
+
+              return StatefulBuilder(
+                builder: (BuildContext context, StateSetter setState) {
+                  return SingleChildScrollView(
+                    child: ListBody(
+                      children: <Widget>[
+                        TextField(
+                          controller: nomNotationController,
+                          decoration: const InputDecoration(
+                            labelText: 'Nom de la notation',
+                          ),
+                        ),
+                        TextField(
+                          controller: aliasNotationController,
+                          decoration: const InputDecoration(
+                            labelText: 'Alias',
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: isLibreNotation,
+                              onChanged: (bool? value) {
+                                setState(() {
+                                  isLibreNotation = value ?? false;
+                                  amplitude = null;
+                                });
+                              },
+                            ),
+                            const Text('Notation libre'),
+                          ],
+                        ),
+                        if (!isLibreNotation) ...[
+                          DropdownButton<int>(
+                            value: amplitude,
+                            hint: const Text('Choisir l\'amplitude'),
+                            items: amplitudeItems,
+                            onChanged: (int? value) {
+                              setState(() {
+                                amplitude = value;
+                              });
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                  );
                 },
-              ),
-            ],
-          );
-        },
+              );
+            } else {
+              return const Text('Pas de données disponibles.');
+            }
+          },
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Annuler'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
+          ),
+          TextButton(
+            child: const Text('Ajouter'),
+            onPressed: () async {
+              final String nomNotation = nomNotationController.text.trim();
+              final String aliasNotation = aliasNotationController.text.trim();
+
+              if (nomNotation.isEmpty || aliasNotation.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Veuillez remplir tous les champs')),
+                );
+                return;
+              }
+
+              final String typeNotation = isLibreNotation ? 'libre' : 'note $amplitude';
+
+              try {
+                final docRef = FirebaseFirestore.instance.collection('Notations').doc(nomNotation);
+                final docSnapshot = await docRef.get();
+
+                if (docSnapshot.exists) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('La notation existe déjà')),
+                  );
+                } else {
+                  await docRef.set({
+                    'nom': nomNotation,
+                    'alias': aliasNotation,
+                    'type': typeNotation,
+                  });
+                  Navigator.of(dialogContext).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Notation ajoutée avec succès')),
+                  );
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Erreur lors de l\'ajout: $e')),
+                );
+              }
+            },
+          ),
+        ],
       );
     },
   );
 }
+
 
 
 
@@ -1423,47 +1532,49 @@ void _editNotation(BuildContext context, String notationId, Map<String, dynamic>
                     ),
                   ),
                   const SizedBox(height: 16.0),
-                  Text('Type de notation:'),
-                  RadioListTile<String>(
-                    title: const Text('note 0 à 3'),
-                    value: 'note 3',
-                    groupValue: selectedType,
-                    onChanged: (String? value) {
-                      setState(() {
-                        selectedType = value!;
-                      });
-                    },
-                  ),
-                  RadioListTile<String>(
-                    title: const Text('note 0 à 4'),
-                    value: 'note 4',
-                    groupValue: selectedType,
-                    onChanged: (String? value) {
-                      setState(() {
-                        selectedType = value!;
-                      });
-                    },
-                  ),
-                  RadioListTile<String>(
-                    title: const Text('note 1 à 9'),
-                    value: 'note 9',
-                    groupValue: selectedType,
-                    onChanged: (String? value) {
-                      setState(() {
-                        selectedType = value!;
-                      });
-                    },
-                  ),
-                  RadioListTile<String>(
-                    title: const Text('note libre'),
-                    value: 'libre',
-                    groupValue: selectedType,
-                    onChanged: (String? value) {
-                      setState(() {
-                        selectedType = value!;
-                      });
-                    },
-                  ),
+                                    // A modifier pour la modification 
+                  // Text('Type de notation:'),
+
+                  // RadioListTile<String>(
+                  //   title: const Text('note 0 à 3'),
+                  //   value: 'note 3',
+                  //   groupValue: selectedType,
+                  //   onChanged: (String? value) {
+                  //     setState(() {
+                  //       selectedType = value!;
+                  //     });
+                  //   },
+                  // ),
+                  // RadioListTile<String>(
+                  //   title: const Text('note 0 à 4'),
+                  //   value: 'note 4',
+                  //   groupValue: selectedType,
+                  //   onChanged: (String? value) {
+                  //     setState(() {
+                  //       selectedType = value!;
+                  //     });
+                  //   },
+                  // ),
+                  // RadioListTile<String>(
+                  //   title: const Text('note 1 à 9'),
+                  //   value: 'note 9',
+                  //   groupValue: selectedType,
+                  //   onChanged: (String? value) {
+                  //     setState(() {
+                  //       selectedType = value!;
+                  //     });
+                  //   },
+                  // ),
+                  // RadioListTile<String>(
+                  //   title: const Text('note libre'),
+                  //   value: 'libre',
+                  //   groupValue: selectedType,
+                  //   onChanged: (String? value) {
+                  //     setState(() {
+                  //       selectedType = value!;
+                  //     });
+                  //   },
+                  // ),
                 ],
               ),
             ),
