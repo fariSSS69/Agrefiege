@@ -112,10 +112,18 @@ Future<List<Map<String, dynamic>>> _getAmplitudes() async {
 
   return notationsWithTypes;
 }
+Future<bool> _doesObservationExist(String parcelleId, String notationName) async {
+  final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
+      .collection('Observations')
+      .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
+      .where('Notations', isEqualTo: notationName)
+      .get();
+  return snapshot.docs.isNotEmpty;
+}
 
 Future<void> _saveData() async {
   bool isSaved = false;
-  final List<Map<String, dynamic>> amplitudes = await _getAmplitudes(); // Assurez-vous que cette ligne est incluse au début de la méthode
+  final List<Map<String, dynamic>> amplitudes = await _getAmplitudes(); 
 
   for (int i = 0; i < _rows.length; i++) {
     final row = _rows[i];
@@ -134,10 +142,9 @@ Future<void> _saveData() async {
       // Validation de la note en fonction du type de notation
       bool isNoteValid = true;
       if (notationType != 'libre') {
-        // Trouver l'amplitude correspondante
         final amplitude = amplitudes.firstWhere(
             (amp) => notationType == 'note ${amp['max']}',
-            orElse: () => {'min': 0, 'max': 10}); // Valeur par défaut si non trouvé
+            orElse: () => {'min': 0, 'max': 10}); 
 
         final min = amplitude['min'] as int;
         final max = amplitude['max'] as int;
@@ -155,11 +162,22 @@ Future<void> _saveData() async {
                 (amp) => notationType == 'note ${amp['max']}')['max']}.'),
           ),
         );
-        return; // Arrêter l'enregistrement si la note n'est pas valide pour la notation fixe
+        return; 
       }
 
-      // Enregistrement des données dans Firestore
-      await _addObservation(parcelleId, notationName, noteText);
+      bool observationExists = await _doesObservationExist(parcelleId, notationName);
+
+      if (observationExists) {
+        bool shouldReplace = await _showReplaceDialog();
+        if (shouldReplace) {
+          await _addObservation(parcelleId, notationName, noteText, replace: true);
+        } else {
+          return; 
+        }
+      } else {
+        await _addObservation(parcelleId, notationName, noteText);
+      }
+
       isSaved = true;
     } else if (noteText.isNotEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -169,7 +187,6 @@ Future<void> _saveData() async {
     }
   }
 
-  // Effacer le formulaire et réinitialiser l'état si les données sont enregistrées
   if (isSaved) {
     setState(() {
       _rows.clear();
@@ -182,8 +199,20 @@ Future<void> _saveData() async {
 }
 
 
+// Méthode d'enregistrement dans Firestore (à adapter selon votre structure de données)
+Future<void> _addObservation(String parcelleId, String notation, String note, {bool replace = false}) async {
+  if (replace) {
+    // Supprimer les anciennes observations avant d'ajouter la nouvelle
+    final QuerySnapshot<Map<String, dynamic>> existingObservations = await FirebaseFirestore.instance
+        .collection('Observations')
+        .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
+        .where('Notations', isEqualTo: notation)
+        .get();
+    for (var doc in existingObservations.docs) {
+      await doc.reference.delete();
+    }
+  }
 
-Future<void> _addObservation(String parcelleId, String notation, String note) async {
   await FirebaseFirestore.instance.collection('Observations').add({
     'Date_observation': Timestamp.now(),
     'Observateur': FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
@@ -192,6 +221,7 @@ Future<void> _addObservation(String parcelleId, String notation, String note) as
     'Notations': notation,
   });
 }
+
 
 Future<bool> _showReplaceDialog() async {
   return await showDialog<bool>(
@@ -216,8 +246,9 @@ Future<bool> _showReplaceDialog() async {
         ],
       );
     },
-  ) ?? false; // Return false if the dialog is dismissed
+  ) ?? false; 
 }
+
  
 
   Future<void> _createNewObservateur(BuildContext context) {
@@ -567,10 +598,8 @@ TableCell(
   ),
 ),
 
-
-
 TableCell(
-  child: row['notation'] != null && row['selectedNotationType'] != null
+  child: row['notation'] != null
     ? FutureBuilder<List<Map<String, dynamic>>>(
         future: _getAmplitudes(), // Appel à la méthode pour obtenir les amplitudes
         builder: (context, snapshot) {
@@ -587,54 +616,72 @@ TableCell(
           }
 
           final List<Map<String, dynamic>> amplitudes = snapshot.data!;
-          final String selectedNotationType = row['selectedNotationType'];
-          final TextEditingController noteController = row['Note'];
+          final String selectedNotation = row['notation'];
 
-          // Trouver l'amplitude correspondante
-          final amplitude = amplitudes.firstWhere(
-            (amp) => amp['nom'] == selectedNotationType,
-            orElse: () => {'valeur_min': 0, 'valeur_max': 10, 'alias_min': '', 'alias_max': ''},
-          );
+          if (row['selectedNotationType'] == 'libre') {
+            // Afficher un champ de texte pour les notations libres
+            final TextEditingController noteController = row['noteController'];
+            return Container(
+              height: 56,
+              alignment: Alignment.center,
+              child: TextField(
+                controller: noteController,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Entrez la note',
+                ),
+                keyboardType: TextInputType.text,
+              ),
+            );
+          } else {
+            // Trouver l'amplitude correspondante en comparant `nom` et `alias_notation`
+            final amplitude = amplitudes.firstWhere(
+              (amp) => amp['alias_notation'] == selectedNotation,
+              orElse: () => {'valeur_min': 0, 'valeur_max': 10, 'alias_min': '', 'alias_max': ''},
+            );
 
-          final int min = amplitude['valeur_min'] as int;
-          final int max = amplitude['valeur_max'] as int;
-          final String aliasMin = amplitude['alias_min'] as String;
-          final String aliasMax = amplitude['alias_max'] as String;
+            final int min = amplitude['valeur_min'] as int;
+            final int max = amplitude['valeur_max'] as int;
+            final String aliasMin = amplitude['alias_min'] as String;
+            final String aliasMax = amplitude['alias_max'] as String;
 
-          print('Amplitude trouvée: min = $min, max = $max, alias_min = $aliasMin, alias_max = $aliasMax'); // Debugging
+            final TextEditingController noteController = row['Note'];
 
-          return Container(
-            height: 56,
-            alignment: Alignment.center,
-            child: DropdownButton<String>(
-              value: noteController.text.isNotEmpty ? noteController.text : null,
-              onChanged: (newValue) {
-                setState(() {
-                  noteController.text = newValue ?? '';
-                });
-              },
-              items: List<String>.generate(max - min + 1, (index) => '${min + index}')
-                  .map<DropdownMenuItem<String>>(
-                    (String value) {
-                      final int intValue = int.parse(value);
-                      final String displayText = intValue == min
-                          ? '$value ($aliasMin)'
-                          : intValue == max
-                              ? '$value ($aliasMax)'
-                              : value;
-                      
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(displayText),
-                      );
-                    },
-                  ).toList(),
-            ),
-          );
+            return Container(
+              height: 56,
+              alignment: Alignment.center,
+              child: DropdownButton<String>(
+                value: noteController.text.isNotEmpty ? noteController.text : null,
+                onChanged: (newValue) {
+                  setState(() {
+                    noteController.text = newValue ?? '';
+                  });
+                },
+                items: List<String>.generate(max - min + 1, (index) => '${min + index}')
+                    .map<DropdownMenuItem<String>>(
+                      (String value) {
+                        final int intValue = int.parse(value);
+                        final String displayText = intValue == min
+                            ? '$value ($aliasMin)'
+                            : intValue == max
+                                ? '$value ($aliasMax)'
+                                : value;
+
+                        return DropdownMenuItem<String>(
+                          value: value,
+                          child: Text(displayText),
+                        );
+                      },
+                    ).toList(),
+              ),
+            );
+          }
         },
       )
-    : Container(), // Gestion des autres cas où row['notation'] ou row['selectedNotationType'] est null
+    : Container(), // Gestion des autres cas où row['notation'] est null
 ),
+
+
 
 
 
@@ -715,4 +762,3 @@ TableCell(
     );
   }
 }
-

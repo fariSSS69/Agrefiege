@@ -776,6 +776,7 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
     );
   }
 void _addNewAmplitude(BuildContext context) {
+  final TextEditingController aliasNotationController = TextEditingController();
   final TextEditingController minController = TextEditingController();
   final TextEditingController maxController = TextEditingController();
   final TextEditingController aliasMinController = TextEditingController();
@@ -791,6 +792,13 @@ void _addNewAmplitude(BuildContext context) {
             content: SingleChildScrollView(
               child: ListBody(
                 children: <Widget>[
+                  TextField(
+                    controller: aliasNotationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Alias (ATTENTION mettre le meme nom que la notation Par exemple : DenGa)',
+                    ),
+                  ),
+                  const SizedBox(height: 16.0),
                   TextField(
                     controller: minController,
                     decoration: const InputDecoration(
@@ -830,12 +838,13 @@ void _addNewAmplitude(BuildContext context) {
               TextButton(
                 child: const Text('Ajouter'),
                 onPressed: () {
+                  final String aliasNotation = aliasNotationController.text.trim();
                   final String minValue = minController.text.trim();
                   final String maxValue = maxController.text.trim();
                   final String aliasMin = aliasMinController.text.trim();
                   final String aliasMax = aliasMaxController.text.trim();
 
-                  if (minValue.isNotEmpty && maxValue.isNotEmpty) {
+                  if (minValue.isNotEmpty && maxValue.isNotEmpty && aliasNotation.isNotEmpty) {
                     final int min = int.tryParse(minValue) ?? 0;
                     final int max = int.tryParse(maxValue) ?? 0;
 
@@ -847,13 +856,13 @@ void _addNewAmplitude(BuildContext context) {
                         'valeur_max': max,
                         'alias_min': aliasMin.isEmpty ? null : aliasMin,
                         'alias_max': aliasMax.isEmpty ? null : aliasMax,
-                        'nom': nomAmplitude
+                        'alias_notation': aliasNotation,
+                        'nom': nomAmplitude,
                       };
 
                       FirebaseFirestore.instance
                           .collection('Amplitudes')
-                          .doc(nomAmplitude)
-                          .set(amplitudeData)
+                          .add(amplitudeData)  // Utiliser .add() pour générer un ID unique
                           .then((_) {
                         Navigator.of(context).pop();
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -871,7 +880,7 @@ void _addNewAmplitude(BuildContext context) {
                     }
                   } else {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Veuillez remplir toutes les valeurs')),
+                      const SnackBar(content: Text('Veuillez remplir tous les champs')),
                     );
                   }
                 },
@@ -883,6 +892,8 @@ void _addNewAmplitude(BuildContext context) {
     },
   );
 }
+
+
 
   void _addNewParcelle(BuildContext context) {
   final TextEditingController numeroParcelleController = TextEditingController();
@@ -1174,7 +1185,7 @@ void _addNewNotation(BuildContext context) {
   final TextEditingController nomNotationController = TextEditingController();
   final TextEditingController aliasNotationController = TextEditingController();
   bool isLibreNotation = false;
-  int? amplitude;
+  String? selectedAmplitudeId;
 
   showDialog(
     context: context,
@@ -1193,14 +1204,17 @@ void _addNewNotation(BuildContext context) {
             }
 
             if (snapshot.hasData && snapshot.data != null) {
-              final List<DropdownMenuItem<int>> amplitudeItems = snapshot.data!.docs
+              final List<DropdownMenuItem<String>> amplitudeItems = snapshot.data!.docs
                   .map((DocumentSnapshot document) {
                     final Map<String, dynamic> data = document.data() as Map<String, dynamic>;
                     final int minValue = data['valeur_min'];
                     final int maxValue = data['valeur_max'];
-                    return DropdownMenuItem<int>(
-                      value: maxValue,
-                      child: Text('$minValue à $maxValue'),
+                    final String aliasNotation = data['alias_notation'] ?? 'Sans alias';
+                    final String docId = document.id;
+
+                    return DropdownMenuItem<String>(
+                      value: docId,
+                      child: Text('$minValue à $maxValue ($aliasNotation)'),
                     );
                   }).toList();
 
@@ -1228,7 +1242,7 @@ void _addNewNotation(BuildContext context) {
                               onChanged: (bool? value) {
                                 setState(() {
                                   isLibreNotation = value ?? false;
-                                  amplitude = null;
+                                  selectedAmplitudeId = null;
                                 });
                               },
                             ),
@@ -1236,13 +1250,13 @@ void _addNewNotation(BuildContext context) {
                           ],
                         ),
                         if (!isLibreNotation) ...[
-                          DropdownButton<int>(
-                            value: amplitude,
+                          DropdownButton<String>(
+                            value: selectedAmplitudeId,
                             hint: const Text('Choisir l\'amplitude'),
                             items: amplitudeItems,
-                            onChanged: (int? value) {
+                            onChanged: (String? value) {
                               setState(() {
-                                amplitude = value;
+                                selectedAmplitudeId = value;
                               });
                             },
                           ),
@@ -1277,7 +1291,19 @@ void _addNewNotation(BuildContext context) {
                 return;
               }
 
-              final String typeNotation = isLibreNotation ? 'libre' : 'note $amplitude';
+              String typeNotation;
+              if (isLibreNotation) {
+                typeNotation = 'libre';
+              } else {
+                final DocumentSnapshot selectedAmplitude = await FirebaseFirestore.instance
+                    .collection('Amplitudes')
+                    .doc(selectedAmplitudeId)
+                    .get();
+                final Map<String, dynamic> data = selectedAmplitude.data() as Map<String, dynamic>;
+                final int minValue = data['valeur_min'];
+                final int maxValue = data['valeur_max'];
+                typeNotation = '$minValue à $maxValue';
+              }
 
               try {
                 final docRef = FirebaseFirestore.instance.collection('Notations').doc(nomNotation);
@@ -1310,6 +1336,8 @@ void _addNewNotation(BuildContext context) {
     },
   );
 }
+
+
 
 
 
