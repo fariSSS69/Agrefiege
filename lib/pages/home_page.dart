@@ -812,33 +812,6 @@ Widget _buildLieuItem(BuildContext context, DocumentSnapshot document) {
 }
 
 
-  Widget _buildObserverView(BuildContext context) {
-    return Center(
-      child: RichText(
-        textAlign: TextAlign.center,
-        text: TextSpan(
-          style: const TextStyle(
-            color: Colors.black,
-            fontSize: 16.0,
-          ),
-          children: [
-            const TextSpan(
-              text: 'Bienvenue ',
-            ),
-            TextSpan(
-              text: _userEmail,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const TextSpan(
-              text: ' vous êtes connecté en tant qu\'observateur.',
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   void _addNewLieu(BuildContext context) {
     final TextEditingController lieuIdController = TextEditingController();
@@ -1821,6 +1794,109 @@ void _editNotation(BuildContext context, String notationId, Map<String, dynamic>
     },
   );
 }
+
+// PARTIE NON ADMINISTRATEUR
+
+Future<String> _getLieuNameFromObserverEmail(String userEmail) async {
+  try {
+    // Recherche de l'observateur par email
+    final QuerySnapshot observerSnapshot = await FirebaseFirestore.instance
+        .collection('Observateurs')
+        .where('email', isEqualTo: userEmail)
+        .get();
+
+    if (observerSnapshot.docs.isEmpty) {
+      print('Aucun observateur trouvé avec l\'email: $userEmail');
+      return 'Nom du lieu non trouvé';
+    }
+
+    final observerDoc = observerSnapshot.docs.first;
+    final lieuReferences = observerDoc.get('Lieux') as List<dynamic>?;
+
+    if (lieuReferences == null || lieuReferences.isEmpty) {
+      print('Le champ "Lieux" est vide ou manquant pour l\'observateur: $userEmail');
+      return 'Nom du lieu non trouvé';
+    }
+
+    // Supposons que nous voulons récupérer le nom du premier lieu dans la liste
+    final lieuDocRef = lieuReferences.first as DocumentReference;
+
+    final lieuSnapshot = await lieuDocRef.get();
+
+    if (!lieuSnapshot.exists) {
+      print('Le lieu référencé n\'existe pas dans la collection Lieux');
+      return 'Nom du lieu non trouvé';
+    }
+
+    final lieuData = lieuSnapshot.data() as Map<String, dynamic>;
+    final nomLieu = lieuData['Nom_lieu'] as String?;
+
+    if (nomLieu == null) {
+      print('Le champ "Nom_lieu" est manquant dans le document du lieu');
+      return 'Nom du lieu non trouvé';
+    }
+
+    return nomLieu;
+  } catch (e) {
+    print('Erreur lors de la récupération du nom du lieu: $e');
+    return 'Erreur lors de la récupération du nom du lieu';
+  }
+}
+
+Widget _buildObserverView(BuildContext context) {
+  return FutureBuilder<String>(
+    future: _getLieuNameFromObserverEmail(_userEmail),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return Center(child: CircularProgressIndicator());
+      } else if (snapshot.hasError) {
+        return Center(child: Text('Erreur: ${snapshot.error}'));
+      } else if (snapshot.hasData) {
+        final lieuName = snapshot.data!;
+        return Center(
+          child: RichText(
+            textAlign: TextAlign.center,
+            text: TextSpan(
+              style: const TextStyle(
+                color: Colors.black,
+                fontSize: 16.0,
+              ),
+              children: [
+                const TextSpan(
+                  text: 'Bienvenue ',
+                ),
+                TextSpan(
+                  text: _userEmail,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const TextSpan(
+                  text: ' vous êtes connecté en tant qu\'observateur pour le lieu: ',
+                ),
+                TextSpan(
+                  text: lieuName,
+                  style: const TextStyle(
+                    color: Colors.blue,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const TextSpan(
+                  text: '.',
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        return Center(child: Text('Nom du lieu non trouvé'));
+      }
+    },
+  );
+}
+
+
+
 
 
 }
