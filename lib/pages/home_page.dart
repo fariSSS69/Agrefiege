@@ -326,8 +326,173 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
             ),
           ],
         ),
+          SizedBox(height: 20),
+
+        // Liste des Amplitudes
+        ExpansionTile(
+          title: Center(
+            child: Text(
+              'Liste des Amplitudes',
+              style: TextStyle(color: Theme.of(context).primaryColor),
+            ),
+          ),
+          childrenPadding: EdgeInsets.symmetric(horizontal: 16),
+          collapsedBackgroundColor: Colors.grey[200],
+          children: [
+            StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('Amplitudes').snapshots(),
+              builder: (context, amplitudesSnapshot) {
+                if (amplitudesSnapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+                if (amplitudesSnapshot.hasError) {
+                  return Center(child: Text('Erreur: ${amplitudesSnapshot.error}'));
+                }
+
+                final amplitudes = amplitudesSnapshot.data!.docs;
+
+                return ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: amplitudes.length,
+                  separatorBuilder: (context, index) => Divider(),
+                  itemBuilder: (context, index) {
+                    final amplitude = amplitudes[index];
+                    return ListTile(
+                      title: Text('${amplitude['alias_notation']}'),
+                      subtitle: Text('Min: ${amplitude['valeur_min']}, Max: ${amplitude['valeur_max']}'),
+                      trailing: IconButton(
+                        icon: Icon(Icons.edit),
+                        onPressed: () => _editAmplitude(context, amplitude.id, amplitude.data() as Map<String, dynamic>),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ],
+        ),
       ],
     ),
+  );
+}
+
+// Fonction pour modifier une amplitude existante
+void _editAmplitude(BuildContext context, String amplitudeId, Map<String, dynamic> amplitudeData) {
+  final TextEditingController aliasNotationController = TextEditingController(text: amplitudeData['alias_notation']);
+  final TextEditingController minController = TextEditingController(text: amplitudeData['valeur_min'].toString());
+  final TextEditingController maxController = TextEditingController(text: amplitudeData['valeur_max'].toString());
+  final TextEditingController aliasMinController = TextEditingController(text: amplitudeData['alias_min'] ?? '');
+  final TextEditingController aliasMaxController = TextEditingController(text: amplitudeData['alias_max'] ?? '');
+
+  showDialog(
+    context: context,
+    builder: (BuildContext context) {
+      return StatefulBuilder(
+        builder: (BuildContext context, StateSetter setState) {
+          return AlertDialog(
+            title: const Text('Modifier une amplitude de notation'),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[
+                  TextField(
+                    controller: aliasNotationController,
+                    decoration: const InputDecoration(
+                      labelText: 'Alias (ex: DenGa)',
+                    ),
+                  ),
+                  const SizedBox(height: 16.0),
+                  TextField(
+                    controller: minController,
+                    decoration: const InputDecoration(
+                      labelText: 'Valeur minimale',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextField(
+                    controller: maxController,
+                    decoration: const InputDecoration(
+                      labelText: 'Valeur maximale',
+                    ),
+                    keyboardType: TextInputType.number,
+                  ),
+                  TextField(
+                    controller: aliasMinController,
+                    decoration: const InputDecoration(
+                      labelText: 'Alias pour la valeur minimale',
+                    ),
+                  ),
+                  TextField(
+                    controller: aliasMaxController,
+                    decoration: const InputDecoration(
+                      labelText: 'Alias pour la valeur maximale',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                child: const Text('Annuler'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+              ),
+              TextButton(
+                child: const Text('Enregistrer'),
+                onPressed: () {
+                  final String aliasNotation = aliasNotationController.text.trim();
+                  final String minValue = minController.text.trim();
+                  final String maxValue = maxController.text.trim();
+                  final String aliasMin = aliasMinController.text.trim();
+                  final String aliasMax = aliasMaxController.text.trim();
+
+                  if (minValue.isNotEmpty && maxValue.isNotEmpty && aliasNotation.isNotEmpty) {
+                    final int min = int.tryParse(minValue) ?? 0;
+                    final int max = int.tryParse(maxValue) ?? 0;
+
+                    if (min < max) {
+                      final String nomAmplitude = 'note $max';
+
+                      Map<String, dynamic> updatedAmplitudeData = {
+                        'valeur_min': min,
+                        'valeur_max': max,
+                        'alias_min': aliasMin.isEmpty ? null : aliasMin,
+                        'alias_max': aliasMax.isEmpty ? null : aliasMax,
+                        'alias_notation': aliasNotation,
+                        'nom': nomAmplitude,
+                      };
+
+                      FirebaseFirestore.instance
+                          .collection('Amplitudes')
+                          .doc(amplitudeId) // Utiliser .doc() pour mettre à jour un document existant
+                          .update(updatedAmplitudeData)
+                          .then((_) {
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Amplitude modifiée avec succès')),
+                        );
+                      }).catchError((error) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Erreur lors de la modification de l\'amplitude: $error')),
+                        );
+                      });
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('La valeur minimale doit être inférieure à la valeur maximale')),
+                      );
+                    }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Veuillez remplir tous les champs')),
+                    );
+                  }
+                },
+              ),
+            ],
+          );
+        },
+      );
+    },
   );
 }
 
@@ -922,7 +1087,7 @@ void _addNewAmplitude(BuildContext context) {
                     ),
                     keyboardType: TextInputType.text, // Permet la saisie de texte avec des caractères spéciaux
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[0-9]')), // Autorise uniquement les chiffres, les points, les virgules et les slashes
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')), // Autorise alphanumerique
                     ],
                     // Optionnel: Vous pouvez ajouter un validateur si vous avez un formulaire
                   ),
@@ -986,10 +1151,10 @@ void _addNewAmplitude(BuildContext context) {
                 onPressed: () {
                   final String parcelleId = numeroParcelleController.text.trim();
 
-                  // Vérifier si le texte contient des lettres
-                  if (RegExp(r'[a-zA-Z]').hasMatch(parcelleId)) {
+                  // Vérifier si le texte contient des alphanumeriques uniquement
+                  if (!RegExp(r'^[a-zA-Z0-9]+$').hasMatch(parcelleId)) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Le numéro de la parcelle ne peut contenir que des chiffres et des caractères spéciaux (.,/)')),
+                      const SnackBar(content: Text('Le numéro de la parcelle ne peut contenir que des chiffres et des lettres')),
                     );
                   } else if (parcelleId.isNotEmpty && selectedLieuId.isNotEmpty) {
                     FirebaseFirestore.instance
