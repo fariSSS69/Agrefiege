@@ -58,6 +58,7 @@ class _DashboardPageState extends State<DashboardPage> {
               },
               'Date_observation': DateTime.fromMillisecondsSinceEpoch(
                   observationData['Date_observation'].millisecondsSinceEpoch),
+              'Lieu': lieuDoc.data()['Nom_lieu'],
             };
           }).toList();
           allObservations.addAll(observations);
@@ -102,6 +103,7 @@ class _DashboardPageState extends State<DashboardPage> {
               },
               'Date_observation': DateTime.fromMillisecondsSinceEpoch(
                   observationData['Date_observation'].millisecondsSinceEpoch),
+              'Lieu': lieuSnapshot.data()['Nom_lieu'],
             };
           }).toList();
           allObservations.addAll(observations);
@@ -135,12 +137,13 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Future<void> _exportToExcel() async {
     final List<List<dynamic>> rows = [
-      ['Date', 'Parcelle', 'Notation', 'Note']
+      ['Date', 'Lieu', 'Parcelle', 'Notation', 'Note']
     ]; // Header
 
     for (var observation in _observations) {
       rows.add([
         DateFormat('dd/MM/yyyy HH:mm').format(observation['Date_observation']),
+        observation['Lieu'], // Ajouter le nom du lieu
         observation['Parcelle']['numero'].toString(),
         observation['Notations'],
         observation['Note'],
@@ -187,6 +190,13 @@ class _DashboardPageState extends State<DashboardPage> {
                                 ascending),
                           ),
                           DataColumn(
+                            label: const Text('Lieu'),
+                            onSort: (columnIndex, ascending) => _sort<String>(
+                                (observation) => observation['Lieu'],
+                                columnIndex,
+                                ascending),
+                          ),
+                          DataColumn(
                             label: const Text('Parcelle'),
                             onSort: (columnIndex, ascending) => _sort<int>(
                                 (observation) =>
@@ -216,6 +226,7 @@ class _DashboardPageState extends State<DashboardPage> {
                                   DataCell(Text(DateFormat('dd/MM/yyyy HH:mm')
                                       .format(
                                           observation['Date_observation']))),
+                                  DataCell(Text(observation['Lieu'])), // Afficher le nom du lieu
                                   DataCell(Text(observation['Parcelle']
                                           ['numero']
                                       .toString())),
