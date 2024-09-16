@@ -416,349 +416,347 @@ Future<bool> _showReplaceDialog() async {
   }
 
   
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(
-                children: [
-                  if (_user.email == 'faris.maisonneuve@wanadoo.fr') ...[
-                    Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: DropdownButton<String>(
-                        isExpanded: true,
-                        value: _lieuId,
-                        items: _lieuxDropdownItems,
-                        hint: const Text('Sélectionnez un lieu'),
-                        onChanged: (value) {
-                          if (_hasUnsavedData) {
-                            _showChangeLocationConfirmationDialog(value!);
-                          } else {
-                            setState(() {
-                              _lieuId = value;
-                            });
-                          }
-                        },
-                      ),
-                    ),
-                  ],
-                  FutureBuilder<QuerySnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('Parcelles')
-                        .where('Lieu',
-                            isEqualTo: FirebaseFirestore.instance
-                                .doc('Lieux/$_lieuId'))
-                        .get(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const CircularProgressIndicator();
-                      } else if (snapshot.hasError) {
-                        return Text('Error: ${snapshot.error}');
-                      } else if (!snapshot.hasData ||
-                          snapshot.data!.docs.isEmpty) {
-                        return const Text(
-                            'Aucune parcelle disponible pour ce lieu');
-                      } else {
-                        List<String> parcelles = snapshot.data!.docs
-                            .map((doc) => doc['Numero_parcelle'].toString())
-                            .toList();
-                        return SingleChildScrollView(
-                          child: Column(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(16),
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: Colors.grey),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Table(
-                                  children: [
-                                    TableRow(
-                                      children: [
-                                        const TableCell(
-                                          child: Text(
-                                            'Parcelles',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        const TableCell(
-                                          child: Text(
-                                            'Notations',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        const TableCell(
-                                          child: Text(
-                                            'Notes',
-                                            style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                            ),
-                                          ),
-                                        ),
-                                        TableCell(
-                                          child: Container(),
-                                        ),
-                                      ],
-                                    ),
-                                    ..._rows.map((row) {
-                                      return TableRow(
-                                        children: [
-                                          TableCell(
-                                            child: Container(
-                                              height: 56,
-                                              alignment: Alignment.center,
-                                              child: DropdownButton<String>(
-                                                value: row['parcelle'],
-                                                onChanged: (newValue) {
-                                                  setState(() {
-                                                    row['parcelle'] = newValue;
-                                                    row['notation'] = null;
-                                                  });
-                                                },
-                                                items: parcelles.map<
-                                                        DropdownMenuItem<
-                                                            String>>(
-                                                    (String value) {
-                                                  return DropdownMenuItem<
-                                                      String>(
-                                                    value: value,
-                                                    child: Text(value),
-                                                  );
-                                                }).toList(),
-                                              ),
-                                            ),
-                                          ),
-                                         
-// Ici gerer lecart
-TableCell(
-  child: Container(
-    height: 56,
-    alignment: Alignment.center,
-    child: row['parcelle'] != null
-      ? FutureBuilder<List<Map<String, dynamic>>>(
-          future: _getNotationData(row['parcelle']),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const CircularProgressIndicator();
-            } else if (snapshot.hasError) {
-              return Text('Error: ${snapshot.error}');
-            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-              return const Text('Aucune notation disponible pour cette parcelle');
-            } else {
-              List<Map<String, dynamic>> notationsData = snapshot.data!;
-              return DropdownButton<String>(
-                value: row['notation'],
-                onChanged: (newValue) {
-                  setState(() {
-                    row['notation'] = newValue;
-                    row['Note'] = TextEditingController();
-                    row['selectedNotationType'] = notationsData.firstWhere(
-                      (notation) => notation['nom'] == newValue,
-                      orElse: () => {'type': null},
-                    )['type'];
-                  });
-                },
-                items: notationsData.map<DropdownMenuItem<String>>(
-                  (Map<String, dynamic> notation) {
-                    return DropdownMenuItem<String>(
-                      value: notation['nom'],
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: 150), // Ajustez selon vos besoins
-                        child: Tooltip(
-                          message: (notation['alias'] != null && notation['alias']!.isNotEmpty)
-                            ? '${notation['nom']} (${notation['alias']})'
-                            : notation['nom'],
-                          child: Text(
-                            (notation['alias'] != null && notation['alias']!.isNotEmpty)
-                              ? '${notation['nom']} (${notation['alias']})'
-                              : notation['nom'],
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ).toList(),
-              );
-            }
-          },
-        )
-      : Container(),
-  ),
-),
-
-TableCell(
-  child: row['notation'] != null
-    ? FutureBuilder<List<Map<String, dynamic>>>(
-        future: _getAmplitudes(), // Appel à la méthode pour obtenir les amplitudes
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-
-          if (snapshot.hasError) {
-            return Center(child: Text('Erreur de chargement des amplitudes'));
-          }
-
-          if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return Center(child: Text('Aucune amplitude disponible'));
-          }
-
-          final List<Map<String, dynamic>> amplitudes = snapshot.data!;
-          final String selectedNotation = row['notation'];
-
-          if (row['selectedNotationType'] == 'libre') {
-            // Afficher un champ de texte pour les notations libres
-            final TextEditingController noteController = row['noteController'];
-            return Container(
-              height: 56,
-              alignment: Alignment.center,
-              child: TextField(
-                controller: noteController,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(),
-                  hintText: 'Entrez la note',
-                ),
-                keyboardType: TextInputType.text,
-              ),
-            );
-          } else {
-            // Trouver l'amplitude correspondante en comparant `nom` et `alias_notation`
-            final amplitude = amplitudes.firstWhere(
-              (amp) => amp['alias_notation'] == selectedNotation,
-              orElse: () => {'valeur_min': 0, 'valeur_max': 10, 'alias_min': '', 'alias_max': ''},
-            );
-
-            final int min = amplitude['valeur_min'] as int;
-            final int max = amplitude['valeur_max'] as int;
-            final String aliasMin = amplitude['alias_min'] as String;
-            final String aliasMax = amplitude['alias_max'] as String;
-
-            final TextEditingController noteController = row['Note'];
-
-            return Container(
-              height: 56,
-              alignment: Alignment.center,
-              child: DropdownButton<String>(
-                value: noteController.text.isNotEmpty ? noteController.text : null,
-                onChanged: (newValue) {
-                  setState(() {
-                    noteController.text = newValue ?? '';
-                  });
-                },
-                items: List<String>.generate(max - min + 1, (index) => '${min + index}')
-                    .map<DropdownMenuItem<String>>(
-                      (String value) {
-                        final int intValue = int.parse(value);
-                        final String displayText = intValue == min
-                            ? '$value ($aliasMin)'
-                            : intValue == max
-                                ? '$value ($aliasMax)'
-                                : value;
-
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(displayText),
-                        );
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: AppBar(),
+    body: _isLoading
+        ? const Center(child: CircularProgressIndicator())
+        : SingleChildScrollView(
+            child: Column(
+              children: [
+                if (_user.email == 'faris.maisonneuve@wanadoo.fr') ...[
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: DropdownButton<String>(
+                      isExpanded: true,
+                      value: _lieuId,
+                      items: _lieuxDropdownItems,
+                      hint: const Text('Sélectionnez un lieu'),
+                      onChanged: (value) {
+                        if (_hasUnsavedData) {
+                          _showChangeLocationConfirmationDialog(value!);
+                        } else {
+                          setState(() {
+                            _lieuId = value;
+                          });
+                        }
                       },
-                    ).toList(),
-              ),
-            );
-          }
-        },
-      )
-    : Container(), // Gestion des autres cas où row['notation'] est null
-),
+                    ),
+                  ),
+                ],
+                FutureBuilder<QuerySnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('Parcelles')
+                      .where('Lieu', isEqualTo: FirebaseFirestore.instance.doc('Lieux/$_lieuId'))
+                      .get(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator();
+                    } else if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return const Text('Aucune parcelle disponible pour ce lieu');
+                    } else {
+                      List<String> parcelles = snapshot.data!.docs
+                          .map((doc) => doc['Numero_parcelle'].toString())
+                          .toList();
+                      return Column(
+                        children: [
+                          ..._rows.map((row) {
+                            return Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: Colors.grey),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                   children: [
+  Expanded(
+    child: Container(
+      height: 56,
+      alignment: Alignment.center,
+      child: Row(
+        children: [
+          Text(
+            'Parcelle',  // Titre à afficher à gauche du DropdownButton
+            style: TextStyle(
+              fontSize: 16,       // Taille de la police
+              fontWeight: FontWeight.bold,  // Poids de la police
+            ),
+          ),
+          SizedBox(width: 8),  // Espacement entre le titre et le DropdownButton
+          Expanded(
+            child: DropdownButton<String>(
+              value: row['parcelle'],
+              onChanged: (newValue) {
+                setState(() {
+                  row['parcelle'] = newValue;
+                  row['notation'] = null;
+                });
+              },
+              items: parcelles.map<DropdownMenuItem<String>>(
+                (String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                },
+              ).toList(),
+            ),
+          ),
+        ],
+      ),
+    ),
+  ),
+],
+
+                                  ),
+                                  Row(
+                                  children: [
+  Expanded(
+    child: Container(
+      height: 56,
+      alignment: Alignment.center,
+      child: Row(
+        children: [
+          // Titre "Notation"
+          Text(
+            'Notation',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          SizedBox(width: 8),  // Espacement entre le titre et la liste déroulante
+
+          // Contenu conditionnel
+          Expanded(
+            child: row['parcelle'] != null
+              ? FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _getNotationData(row['parcelle']),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      // Affiche un indicateur de chargement pendant le chargement des données
+                      return Center(child: CircularProgressIndicator());
+                    } else if (snapshot.hasError) {
+                      // Affiche un message d'erreur en cas d'échec de chargement des données
+                      return Center(child: Text('Erreur: ${snapshot.error}'));
+                    } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      // Affiche un message lorsque aucune donnée n'est disponible
+                      return Center(child: Text('Aucune notation disponible pour cette parcelle'));
+                    } else {
+                      List<Map<String, dynamic>> notationsData = snapshot.data!;
+                      return DropdownButton<String>(
+                        value: row['notation'],
+                        onChanged: (newValue) {
+                          setState(() {
+                            row['notation'] = newValue;
+                            row['Note'] = TextEditingController();
+                            row['selectedNotationType'] = notationsData.firstWhere(
+                              (notation) => notation['nom'] == newValue,
+                              orElse: () => {'type': null},
+                            )['type'];
+                          });
+                        },
+                        items: notationsData.map<DropdownMenuItem<String>>(
+                          (Map<String, dynamic> notation) {
+                            return DropdownMenuItem<String>(
+                              value: notation['nom'],
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(maxWidth: 150),
+                                child: Tooltip(
+                                  message: (notation['alias'] != null && notation['alias']!.isNotEmpty)
+                                    ? '${notation['nom']} (${notation['alias']})'
+                                    : notation['nom'],
+                                  child: Text(
+                                    (notation['alias'] != null && notation['alias']!.isNotEmpty)
+                                      ? '${notation['nom']} (${notation['alias']})'
+                                      : notation['nom'],
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ).toList(),
+                      );
+                    }
+                  },
+                )
+              : Container(),  // Affiche un conteneur vide si row['parcelle'] est null
+          ),
+        ],
+      ),
+    ),
+  ),
+],
 
 
+                                  ),
+                                  Row(
+                                   children: [
+  Expanded(
+    child: Container(
+      height: 56,
+      alignment: Alignment.center,
+      child: Row(
+        children: [
+          Text(
+            'Note:',  // Titre à afficher à gauche de la liste déroulante ou du TextField
+            style: TextStyle(
+              fontSize: 16,       // Taille de la police
+              fontWeight: FontWeight.bold,  // Poids de la police
+            ),
+          ),
+          SizedBox(width: 8),  // Espacement entre le titre et le contenu
+          Expanded(
+            child: row['notation'] != null
+              ? FutureBuilder<List<Map<String, dynamic>>>(
+                  future: _getAmplitudes(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator());
+                    }
 
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Erreur de chargement des amplitudes'));
+                    }
 
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return Center(child: Text('Aucune amplitude disponible'));
+                    }
 
-                                      TableCell(
-                                        child: IconButton(
-                                          icon: const Icon(Icons.delete),
-                                          onPressed: () {
-                                            _deleteRow(_rows.indexOf(row));
-                                          },
+                    final List<Map<String, dynamic>> amplitudes = snapshot.data!;
+                    final String selectedNotation = row['notation'];
+
+                    if (row['selectedNotationType'] == 'libre') {
+                      final TextEditingController noteController = row['noteController'];
+                      return TextField(
+                        controller: noteController,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: 'Entrez la note',
+                        ),
+                        keyboardType: TextInputType.text,
+                      );
+                    } else {
+                      final amplitude = amplitudes.firstWhere(
+                        (amp) => amp['alias_notation'] == selectedNotation,
+                        orElse: () => {'valeur_min': 0, 'valeur_max': 10, 'alias_min': '', 'alias_max': ''},
+                      );
+
+                      final int min = amplitude['valeur_min'] as int;
+                      final int max = amplitude['valeur_max'] as int;
+                      final String aliasMin = amplitude['alias_min'] as String;
+                      final String aliasMax = amplitude['alias_max'] as String;
+
+                      final TextEditingController noteController = row['Note'];
+
+                      return DropdownButton<String>(
+                        value: noteController.text.isNotEmpty ? noteController.text : null,
+                        onChanged: (newValue) {
+                          setState(() {
+                            noteController.text = newValue ?? '';
+                          });
+                        },
+                        items: List<String>.generate(max - min + 1, (index) => '${min + index}')
+                            .map<DropdownMenuItem<String>>(
+                              (String value) {
+                                final int intValue = int.parse(value);
+                                final String displayText = intValue == min
+                                    ? '$value ($aliasMin)'
+                                    : intValue == max
+                                        ? '$value ($aliasMax)'
+                                        : value;
+
+                                return DropdownMenuItem<String>(
+                                  value: value,
+                                  child: Text(displayText),
+                                );
+                              },
+                            ).toList(),
+                      );
+                    }
+                  },
+                )
+              : Container(),
+          ),
+        ],
+      ),
+    ),
+  ),
+],
+
+                                  ),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Container(
+                                          height: 56,
+                                          alignment: Alignment.center,
+                                          child: IconButton(
+                                            icon: const Icon(Icons.delete),
+                                            onPressed: () {
+                                              _deleteRow(_rows.indexOf(row));
+                                            },
+                                          ),
                                         ),
                                       ),
                                     ],
-                                  );
-                                }),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                          Container(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: ElevatedButton(
+                                      onPressed: _addRow,
+                                      child: const Text('Ajouter une ligne'),
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    child: ElevatedButton(
+                                      onPressed: _saveData,
+                                      child: const Text('Enregistrer les données'),
+                                      style: ElevatedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(0)),
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ],
                             ),
                           ),
-                              Container(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 16),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8),
-                                        child: ElevatedButton(
-                                          onPressed: _addRow,
-                                          child:
-                                              const Text('Ajouter une ligne'),
-                                          style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 16, vertical: 12),
-                                            textStyle: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold),
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(0)),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 16),
-                                    Expanded(
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8),
-                                        child: ElevatedButton(
-                                          onPressed: _saveData,
-                                          child: const Text(
-                                              'Enregistrer les données'),
-                                          style: ElevatedButton.styleFrom(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 16, vertical: 12),
-                                            textStyle: const TextStyle(
-                                                fontSize: 18,
-                                                fontWeight: FontWeight.bold),
-                                            shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(0)),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }
-                    },
-                  ),
-                ],
-              ),
+                        ],
+                      );
+                    }
+                  },
+                ),
+              ],
             ),
-    );
-  }
+          ),
+  );
+}
+
 }
