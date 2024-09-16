@@ -1,10 +1,12 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:path_provider/path_provider.dart';
-import 'dart:io';
 import 'package:csv/csv.dart';
+import 'package:mailer/mailer.dart';
+import 'package:mailer/smtp_server/gmail.dart';
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({Key? key}) : super(key: key);
@@ -116,10 +118,8 @@ class _DashboardPageState extends State<DashboardPage> {
     }
   }
 
-  void _sort<T>(
-      Comparable<T> Function(Map<String, dynamic> observation) getField,
-      int columnIndex,
-      bool ascending) {
+  void _sort<T>(Comparable<T> Function(Map<String, dynamic> observation) getField,
+      int columnIndex, bool ascending) {
     _observations.sort((a, b) {
       final aValue = getField(a);
       final bValue = getField(b);
@@ -135,6 +135,37 @@ class _DashboardPageState extends State<DashboardPage> {
     });
   }
 
+  Future<void> _sendEmailWithAttachment(String filePath, BuildContext context) async {
+    String username = 'agrefiege@gmail.com'; // email de l'envoyeur
+    String password = 'emem bvrj qqea xbib'; // mdp application
+
+    final smtpServer = gmail(username, password);
+
+    final message = Message()
+      ..from = Address(username, 'Faris') // Le nom de l'envoyeur
+      ..recipients.add('faris.maisonneuve@gmail.com') // e-mail du destinataire
+      ..subject = 'Export des observations'
+      ..text = 'Voici les observations exportées en pièce jointe.'
+      ..attachments.add(FileAttachment(File(filePath))); // Attache le fichier exporté
+
+    try {
+      final sendReport = await send(message, smtpServer);
+      print('Message envoyé : ' + sendReport.toString());
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("E-mail envoyé avec succès !"),
+      ));
+    } on MailerException catch (e) {
+      print('Échec de l\'envoi de l\'e-mail.');
+      print(e.message);
+      for (var p in e.problems) {
+        print('Problème : ${p.code}: ${p.msg}');
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Échec de l'envoi de l'e-mail."),
+      ));
+    }
+  }
+
   Future<void> _exportToExcel() async {
     final List<List<dynamic>> rows = [
       ['Date', 'Lieu', 'Parcelle', 'Notation', 'Note']
@@ -143,7 +174,7 @@ class _DashboardPageState extends State<DashboardPage> {
     for (var observation in _observations) {
       rows.add([
         DateFormat('dd/MM/yyyy HH:mm').format(observation['Date_observation']),
-        observation['Lieu'], // Ajouter le nom du lieu
+        observation['Lieu'],
         observation['Parcelle']['numero'].toString(),
         observation['Notations'],
         observation['Note'],
@@ -160,85 +191,77 @@ class _DashboardPageState extends State<DashboardPage> {
     final File file = File(filePath);
     await file.writeAsString(csvStringWithSemicolons);
 
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Les données ont été exportées vers $filePath'),
-    ));
+    // Appel de la fonction d'envoi d'e-mail
+    await _sendEmailWithAttachment(filePath, context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
-        child: _observations == null
-            ? const CircularProgressIndicator()
-            : _observations.isEmpty
-                ? const Text('Aucune observation trouvée.')
-                : SingleChildScrollView(
-                    scrollDirection: Axis.vertical,
-                    child: FittedBox(
-                      fit: BoxFit.fitWidth,
-                      child: DataTable(
-                        sortColumnIndex: _sortColumnIndex,
-                        sortAscending: _isAscending,
-                        columns: [
-                          DataColumn(
-                            label: const Text('Date'),
-                            onSort: (columnIndex, ascending) => _sort<DateTime>(
-                                (observation) =>
-                                    observation['Date_observation'],
-                                columnIndex,
-                                ascending),
-                          ),
-                          DataColumn(
-                            label: const Text('Lieu'),
-                            onSort: (columnIndex, ascending) => _sort<String>(
-                                (observation) => observation['Lieu'],
-                                columnIndex,
-                                ascending),
-                          ),
-                          DataColumn(
-                            label: const Text('Parcelle'),
-                            onSort: (columnIndex, ascending) => _sort<int>(
-                                (observation) =>
-                                    observation['Parcelle']['numero'],
-                                columnIndex,
-                                ascending),
-                          ),
-                          DataColumn(
-                            label: const Text('Notation'),
-                            onSort: (columnIndex, ascending) => _sort<String>(
-                                (observation) => observation['Notations'],
-                                columnIndex,
-                                ascending),
-                          ),
-                          DataColumn(
-                            label: const Text('Note'),
-                            onSort: (columnIndex, ascending) => _sort<String>(
-                                (observation) => observation['Note'],
-                                columnIndex,
-                                ascending),
-                          ),
-                        ],
-                        rows: _observations
-                            .map(
-                              (observation) => DataRow(
-                                cells: [
-                                  DataCell(Text(DateFormat('dd/MM/yyyy HH:mm')
-                                      .format(
-                                          observation['Date_observation']))),
-                                  DataCell(Text(observation['Lieu'])), // Afficher le nom du lieu
-                                  DataCell(Text(observation['Parcelle']
-                                          ['numero']
-                                      .toString())),
-                                  DataCell(Text(observation['Notations'])),
-                                  DataCell(Text(observation['Note'])),
-                                ],
-                              ),
-                            )
-                            .toList(),
+        child: _observations.isEmpty
+            ? const Text('Aucune observation trouvée.')
+            : SingleChildScrollView(
+                scrollDirection: Axis.vertical,
+                child: FittedBox(
+                  fit: BoxFit.fitWidth,
+                  child: DataTable(
+                    sortColumnIndex: _sortColumnIndex,
+                    sortAscending: _isAscending,
+                    columns: [
+                      DataColumn(
+                        label: const Text('Date'),
+                        onSort: (columnIndex, ascending) => _sort<DateTime>(
+                            (observation) => observation['Date_observation'],
+                            columnIndex,
+                            ascending),
                       ),
-                    ),
+                      DataColumn(
+                        label: const Text('Lieu'),
+                        onSort: (columnIndex, ascending) => _sort<String>(
+                            (observation) => observation['Lieu'],
+                            columnIndex,
+                            ascending),
+                      ),
+                      DataColumn(
+                        label: const Text('Parcelle'),
+                        onSort: (columnIndex, ascending) => _sort<int>(
+                            (observation) => observation['Parcelle']['numero'],
+                            columnIndex,
+                            ascending),
+                      ),
+                      DataColumn(
+                        label: const Text('Notation'),
+                        onSort: (columnIndex, ascending) => _sort<String>(
+                            (observation) => observation['Notations'],
+                            columnIndex,
+                            ascending),
+                      ),
+                      DataColumn(
+                        label: const Text('Note'),
+                        onSort: (columnIndex, ascending) => _sort<String>(
+                            (observation) => observation['Note'],
+                            columnIndex,
+                            ascending),
+                      ),
+                    ],
+                    rows: _observations
+                        .map(
+                          (observation) => DataRow(
+                            cells: [
+                              DataCell(Text(DateFormat('dd/MM/yyyy HH:mm')
+                                  .format(observation['Date_observation']))),
+                              DataCell(Text(observation['Lieu'])),
+                              DataCell(Text(observation['Parcelle']['numero'].toString())),
+                              DataCell(Text(observation['Notations'])),
+                              DataCell(Text(observation['Note'])),
+                            ],
+                          ),
+                        )
+                        .toList(),
                   ),
+                ),
+              ),
       ),
       appBar: AppBar(
         centerTitle: true,
