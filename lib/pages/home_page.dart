@@ -1050,6 +1050,7 @@ void _addNewAmplitude(BuildContext context) {
 
   void _addNewParcelle(BuildContext context) {
   final TextEditingController numeroParcelleController = TextEditingController();
+  bool selectAllNotations = false; // Nouvelle variable pour contrôler l'état global de sélection
 
   Future<void> _refreshNotations(StateSetter setState) async {
     final notationsSnapshot = await FirebaseFirestore.instance.collection('Notations').get();
@@ -1073,11 +1074,10 @@ void _addNewAmplitude(BuildContext context) {
                     decoration: const InputDecoration(
                       labelText: 'Identifiant de la parcelle',
                     ),
-                    keyboardType: TextInputType.text, // Permet la saisie de texte avec des caractères spéciaux
+                    keyboardType: TextInputType.text, 
                     inputFormatters: [
-                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')), // Autorise alphanumerique
+                      FilteringTextInputFormatter.allow(RegExp(r'[a-zA-Z0-9]')), 
                     ],
-                    // Optionnel: Vous pouvez ajouter un validateur si vous avez un formulaire
                   ),
                   DropdownButtonFormField(
                     value: selectedLieuId,
@@ -1106,6 +1106,21 @@ void _addNewAmplitude(BuildContext context) {
                       ),
                     ],
                   ),
+                  CheckboxListTile(
+                    title: Text('Tout sélectionner'),
+                    value: selectAllNotations,
+                    onChanged: (bool? value) {
+                      setState(() {
+                        selectAllNotations = value!; // Mettre à jour l'état de la case à cocher globale
+                        if (selectAllNotations) {
+                          selectedNotations = availableNotations.map((notation) => notation['nom'] as String).toList();
+
+                        } else {
+                          selectedNotations.clear(); // Désélectionner toutes les notations
+                        }
+                      });
+                    },
+                  ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: availableNotations.map((notation) {
@@ -1118,6 +1133,7 @@ void _addNewAmplitude(BuildContext context) {
                               selectedNotations.add(notation['nom']);
                             } else {
                               selectedNotations.remove(notation['nom']);
+                              selectAllNotations = false; // Si une notation est désélectionnée, on désactive "Tout sélectionner"
                             }
                           });
                         },
@@ -1191,6 +1207,7 @@ void _addNewAmplitude(BuildContext context) {
     },
   );
 }
+
 
 
 
