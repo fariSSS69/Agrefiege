@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:agrefiege/widgets/form_container_widget.dart';
 import 'package:agrefiege/global/common/toast.dart';
-
 import '../../firebase_auth_implementation/firebase_auth_services.dart';
 
 class LoginPage extends StatefulWidget {
@@ -20,6 +19,43 @@ class _LoginPageState extends State<LoginPage> {
   final FirebaseAuth _firebaseAuth = FirebaseAuth.instance;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    // Configurer la persistance locale pour que l'utilisateur reste connecté
+    _setAuthPersistence();
+
+    // Vérifier si un utilisateur est déjà connecté
+    _checkUserStatus();
+  }
+
+  Future<void> _setAuthPersistence() async {
+    try {
+      await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+    } catch (e) {
+      print("Erreur lors de la configuration de la persistance: $e");
+    }
+  }
+
+  Future<void> _checkUserStatus() async {
+    User? currentUser = _firebaseAuth.currentUser;
+
+    if (currentUser != null) {
+      // Si un utilisateur est déjà connecté, rediriger vers la page HomePage
+      bool isObserver = await verifierObservateur(currentUser.email!);
+      if (isObserver) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => HomePage(userEmail: currentUser.email),
+          ),
+        );
+      } else {
+        showToast(message: "L'utilisateur n'est pas un observateur.");
+      }
+    }
+  }
 
   Future<bool> verifierObservateur(String email) async {
     final QuerySnapshot observateurs = await FirebaseFirestore.instance
@@ -132,7 +168,6 @@ class _LoginPageState extends State<LoginPage> {
 
       bool isObserver = await verifierObservateur(email);
       if (isObserver) {
-        // Si l'utilisateur est un observateur, redirigez-le vers la page HomePage
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
@@ -141,7 +176,6 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       } else {
-        // Si l'utilisateur n'est pas un observateur, affichez un message d'erreur
         showToast(message: "L'utilisateur n'est pas un observateur.");
       }
     } on FirebaseAuthException catch (e) {
