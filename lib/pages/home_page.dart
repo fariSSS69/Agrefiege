@@ -1,3 +1,7 @@
+import 'dart:io'; // Import pour File
+import 'package:file_picker/file_picker.dart'; // Import pour FilePicker
+import 'package:firebase_storage/firebase_storage.dart'; // Import pour Firebase Storage
+import 'package:cloud_firestore/cloud_firestore.dart'; // Import pour Firestore
 import 'package:agrefiege/pages/dashboard_page.dart';
 import 'package:agrefiege/pages/observation_page.dart';
 import 'package:agrefiege/pages/settings_page.dart';
@@ -7,6 +11,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:motion_tab_bar/MotionTabBarController.dart';
 import 'package:motion_tab_bar/MotionTabBar.dart';
 import 'package:flutter/services.dart';
+
 
 
 void main() {
@@ -152,8 +157,16 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                 ),
                 IconButton(
   icon: Icon(Icons.add_circle_outline, color: Colors.blue),
+  // tester les tooltips sur telephone
+  tooltip: 'Ajouter une amplitude',
   onPressed: () => _addNewAmplitude(context),
 ),
+  IconButton(
+              icon: const Icon(Icons.attach_file), // Icône pour attacher un fichier
+              tooltip: 'Ajouter un fichier',
+              onPressed: () => _addNewFile(context), // Fonction pour ajouter un fichier
+            ),
+
               ]
             : null,
       ),
@@ -375,6 +388,8 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     ),
   );
 }
+
+
 
 // Fonction pour modifier une amplitude existante
 void _editAmplitude(BuildContext context, String amplitudeId, Map<String, dynamic> amplitudeData) {
@@ -1475,7 +1490,132 @@ void _addNewNotation(BuildContext context) {
   );
 }
 
+void _addNewFile(BuildContext context) {
+  String? selectedLieuId;
+  File? selectedFile;
 
+  showDialog(
+    context: context,
+    builder: (BuildContext dialogContext) {
+      return AlertDialog(
+        title: const Text('Ajouter un fichier pour un lieu'),
+        content: FutureBuilder<QuerySnapshot>(
+          future: FirebaseFirestore.instance.collection('Lieux').get(), // Collection des lieux
+          builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Text('Erreur: ${snapshot.error}');
+            }
+
+            if (snapshot.hasData && snapshot.data != null) {
+              final List<DropdownMenuItem<String>> lieuItems = snapshot.data!.docs
+                  .map((DocumentSnapshot document) {
+                    final Map<String, dynamic> data = document.data() as Map<String, dynamic>;
+
+                    // Vérification que le nom de lieu n'est pas null
+                    final String nomLieu = data['Nom_lieu'] ?? 'Lieu inconnu';
+                    final String docId = document.id;
+
+                    return DropdownMenuItem<String>(
+                      value: docId,
+                      child: Text(nomLieu),
+                    );
+                  }).toList();
+
+              return StatefulBuilder(
+                builder: (BuildContext context, StateSetter setState) {
+                  return Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      DropdownButton<String>(
+                        value: selectedLieuId,
+                        hint: const Text('Choisir un lieu'),
+                        items: lieuItems,
+                        onChanged: (String? value) {
+                          setState(() {
+                            selectedLieuId = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(
+                        onPressed: () async {
+                          final FilePickerResult? result = await FilePicker.platform.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+                          );
+
+                          // Vérification que le fichier sélectionné n'est pas null
+                          if (result != null && result.files.single.path != null) {
+                            setState(() {
+                              selectedFile = File(result.files.single.path!);
+                            });
+                          }
+                        },
+                        child: const Text('Choisir un fichier'),
+                      ),
+                      if (selectedFile != null)
+                        Text('Fichier sélectionné: ${selectedFile!.path.split('/').last}'),
+                    ],
+                  );
+                },
+              );
+            } else {
+              return const Text('Pas de lieux disponibles.');
+            }
+          },
+        ),
+        actions: <Widget>[
+          TextButton(
+            child: const Text('Annuler'),
+            onPressed: () {
+              Navigator.of(dialogContext).pop();
+            },
+          ),
+          TextButton(
+            child: const Text('Ajouter'),
+            onPressed: () async {
+              // Vérification que le lieu et le fichier sont bien sélectionnés
+              if (selectedLieuId == null || selectedFile == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Veuillez sélectionner un lieu et un fichier')),
+                );
+                return;
+              }
+
+              try {
+                // Étape 2 : Upload du fichier dans Firebase Storage
+                final fileName = selectedFile!.path.split('/').last;
+                final storageRef = FirebaseStorage.instance.ref().child('files/$fileName');
+                final uploadTask = storageRef.putFile(selectedFile!);
+
+                final TaskSnapshot taskSnapshot = await uploadTask.whenComplete(() => {});
+                final fileUrl = await taskSnapshot.ref.getDownloadURL();
+
+                // Étape 3 : Sauvegarder le lien du fichier dans Firestore
+                await FirebaseFirestore.instance.collection('Lieux').doc(selectedLieuId).update({
+                  'fileUrl': fileUrl, // On associe le fichier au lieu sélectionné
+                });
+
+                Navigator.of(dialogContext).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Fichier ajouté avec succès')),
+                );
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Erreur lors de l\'ajout: $e')),
+                );
+              }
+            },
+          ),
+        ],
+      );
+    },
+  );
+}
 
 
 
