@@ -21,6 +21,8 @@ class _DashboardPageState extends State<DashboardPage> {
   List<Map<String, dynamic>> _filteredObservations = [];
   bool _isAscending = true;
   int _sortColumnIndex = 0;
+  int _currentLimit = 2;
+  final int _defaultLimit = 2;
 
   // Contrôleurs pour les filtres
   TextEditingController _lieuController = TextEditingController();
@@ -138,7 +140,7 @@ class _DashboardPageState extends State<DashboardPage> {
     List<Map<String, dynamic>> filtered = _observations;
 
     if (_user.email == 'faris.maisonneuve@wanadoo.fr' && _lieuController.text.isNotEmpty) {
-      filtered = filtered.where((observation) => 
+      filtered = filtered.where((observation) =>
         observation['Lieu'].toLowerCase().contains(_lieuController.text.toLowerCase())).toList();
     }
 
@@ -148,10 +150,10 @@ class _DashboardPageState extends State<DashboardPage> {
         return date.isAfter(_startDate!) && date.isBefore(_endDate!);
       }).toList();
     } else if (_startDate != null) {
-      filtered = filtered.where((observation) => 
+      filtered = filtered.where((observation) =>
         observation['Date_observation'].isAfter(_startDate!)).toList();
     } else if (_endDate != null) {
-      filtered = filtered.where((observation) => 
+      filtered = filtered.where((observation) =>
         observation['Date_observation'].isBefore(_endDate!)).toList();
     }
 
@@ -194,33 +196,49 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   Future<void> _exportToExcel() async {
-    final List<List<dynamic>> rows = [
-      ['Date', 'Lieu', 'Parcelle', 'Notation', 'Note']
-    ]; // Header
+  // Limite les observations exportées à celles actuellement visibles
+  final List<List<dynamic>> rows = [
+    ['Date', 'Lieu', 'Parcelle', 'Notation', 'Note']
+  ]; // Header
 
-    for (var observation in _filteredObservations) {
-      rows.add([
-        DateFormat('dd/MM/yyyy HH:mm').format(observation['Date_observation']),
-        observation['Lieu'],
-        observation['Parcelle']['numero'].toString(),
-        observation['Notations'],
-        observation['Note'],
-      ]);
-    }
+  final visibleObservations = _filteredObservations.take(_currentLimit).toList();
 
-    final csvString = const ListToCsvConverter().convert(rows);
-    final csvStringWithSemicolons = csvString.replaceAll(',', ';');
+  for (var observation in visibleObservations) {
+    rows.add([
+      DateFormat('dd/MM/yyyy HH:mm').format(observation['Date_observation']),
+      observation['Lieu'],
+      observation['Parcelle']['numero'].toString(),
+      observation['Notations'],
+      observation['Note'],
+    ]);
+  }
 
-    // Prépare le fichier CSV
-    final Directory? directory = await getTemporaryDirectory();
-    final String directoryPath = directory!.path;
-    final String filePath = '$directoryPath/observations_${DateTime.now()}.csv';
+  final csvString = const ListToCsvConverter().convert(rows);
+  final csvStringWithSemicolons = csvString.replaceAll(',', ';');
 
-    final File file = File(filePath);
-    await file.writeAsString(csvStringWithSemicolons);
+  // Prépare le fichier CSV
+  final Directory? directory = await getTemporaryDirectory();
+  final String directoryPath = directory!.path;
+  final String filePath = '$directoryPath/observations_${DateTime.now()}.csv';
 
-    // Envoie l'email avec le fichier attaché
-    await _sendEmailWithAttachment(filePath, context);
+  final File file = File(filePath);
+  await file.writeAsString(csvStringWithSemicolons);
+
+  // Envoie l'email avec le fichier attaché
+  await _sendEmailWithAttachment(filePath, context);
+}
+
+
+  void _loadMore() {
+    setState(() {
+      _currentLimit += 2;
+    });
+  }
+
+  void _loadLess() {
+    setState(() {
+      _currentLimit = (_currentLimit - 2).clamp(_defaultLimit, _filteredObservations.length);
+    });
   }
 
   @override
@@ -229,24 +247,22 @@ class _DashboardPageState extends State<DashboardPage> {
       appBar: AppBar(
         centerTitle: true,
         actions: [
-          if (_user.email != 'faris.maisonneuve@wanadoo.fr') ...[
-            IconButton(
-              onPressed: _exportToExcel,
-              icon: Icon(Icons.file_download),
-              tooltip: 'Exporter vers Excel',
-            ),
-          ],
-          if (_user.email == 'faris.maisonneuve@wanadoo.fr') ...[
-              IconButton(
-              onPressed: _exportToExcel,
-              icon: Icon(Icons.file_download),
-              tooltip: 'Exporter vers Excel',
-            ),
-          ],
-          IconButton(
-            onPressed: () {
-              _getUserData();
+          PopupMenuButton<String>(
+            onSelected: (String value) async {
+              if (value == 'Exporter vers Excel') {
+                await _exportToExcel();
+              }
             },
+            itemBuilder: (BuildContext context) => [
+              PopupMenuItem(
+                value: 'Exporter vers Excel',
+                child: Text('Exporter vers Excel'),
+              ),
+            ],
+          ),
+          SizedBox(width: 10),
+          IconButton(
+            onPressed: _getUserData,
             icon: Icon(Icons.refresh),
             tooltip: 'Actualiser',
           ),
@@ -254,7 +270,6 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       body: Column(
         children: [
-          // Zone de filtrage
           if (_user.email == 'faris.maisonneuve@wanadoo.fr') ...[
             Padding(
               padding: const EdgeInsets.all(8.0),
@@ -266,54 +281,72 @@ class _DashboardPageState extends State<DashboardPage> {
                       decoration: InputDecoration(
                         labelText: 'Filtrer par lieu',
                       ),
-                      onChanged: (value) => _filterObservations(),
+                      onChanged: (value) {
+                        _filterObservations();
+                      },
                     ),
                   ),
-                  SizedBox(width: 10),
                 ],
               ),
             ),
           ],
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    DateTime? pickedDate = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2101),
-                    );
-                    if (pickedDate != null && pickedDate != _startDate) {
-                      setState(() {
-                        _startDate = pickedDate;
-                        _filterObservations();
-                      });
-                    }
-                  },
-                  child: Text(_startDate == null ? 'Choisir Date Début' : DateFormat('dd/MM/yyyy').format(_startDate!)),
-                ),
-                SizedBox(width: 10),
-                ElevatedButton(
-                  onPressed: () async {
-                    DateTime? pickedDate = await showDatePicker(
-                      context: context,
-                      initialDate: DateTime.now(),
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2101),
-                    );
-                    if (pickedDate != null && pickedDate != _endDate) {
-                      setState(() {
-                        _endDate = pickedDate;
-                        _filterObservations();
-                      });
-                    }
-                  },
-                  child: Text(_endDate == null ? 'Choisir Date Fin' : DateFormat('dd/MM/yyyy').format(_endDate!)),
-                ),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (pickedDate != null && pickedDate != _startDate) {
+                        setState(() {
+                          _startDate = pickedDate;
+                          _filterObservations();
+                        });
+                      }
+                    },
+                    child: Text(_startDate == null ? 'Choisir Date Début' : DateFormat('dd/MM/yyyy').format(_startDate!)),
+                  ),
+                  SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: () async {
+                      DateTime? pickedDate = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2101),
+                      );
+                      if (pickedDate != null && pickedDate != _endDate) {
+                        setState(() {
+                          _endDate = pickedDate;
+                          _filterObservations();
+                        });
+                      }
+                    },
+                    child: Text(_endDate == null ? 'Choisir Date Fin' : DateFormat('dd/MM/yyyy').format(_endDate!)),
+                  ),
+                  SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: () {
+                      _loadMore();
+                    },
+                    child: Text('Charger Plus'),
+                  ),
+                  SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: () {
+                      _loadLess();
+                    },
+                    child: Text('Charger Moins'),
+                  ),
+                ],
+              ),
             ),
           ),
           Expanded(
@@ -364,6 +397,7 @@ class _DashboardPageState extends State<DashboardPage> {
                           ),
                         ],
                         rows: _filteredObservations
+                            .take(_currentLimit)
                             .map(
                               (observation) => DataRow(
                                 cells: [
