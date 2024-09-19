@@ -1,4 +1,4 @@
- import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -16,6 +16,26 @@ class _ObservationPageState extends State<ObservationPage> {
   bool _isLoading = true;
   List<DropdownMenuItem<String>>? _lieuxDropdownItems;
   bool _hasUnsavedData = false;
+  String? _imageUrl;
+
+  // Récupération de l'image
+  Future<String?> _getImageUrl(String lieuId) async {
+    final DocumentSnapshot<Map<String, dynamic>> lieuSnapshot =
+        await FirebaseFirestore.instance.collection('Lieux').doc(lieuId).get();
+
+    if (lieuSnapshot.exists) {
+      return lieuSnapshot.data()?['fileUrl'];
+    } else {
+      return null;
+    }
+  }
+
+  Future<void> _getImageForLieu(String lieuId) async {
+    final imageUrl = await _getImageUrl(lieuId);
+    setState(() {
+      _imageUrl = imageUrl;
+    });
+  }
 
   @override
   void initState() {
@@ -24,43 +44,45 @@ class _ObservationPageState extends State<ObservationPage> {
     _addRow();
   }
 
-// Recup l'image
-Future<String?> _getImageUrl(String lieuId) async {
-  final DocumentSnapshot<Map<String, dynamic>> lieuSnapshot =
-      await FirebaseFirestore.instance.collection('Lieux').doc(lieuId).get();
-  
-  if (lieuSnapshot.exists) {
-    return lieuSnapshot.data()?['fileUrl']; // Assure-toi que ce champ est correct
-  } else {
-    return null;
-  }
-}
-
-
   Future<void> _getUserData() async {
     FirebaseAuth auth = FirebaseAuth.instance;
     _user = auth.currentUser!;
+
     final userSnapshot = await FirebaseFirestore.instance
         .collection('Observateurs')
         .where('email', isEqualTo: _user.email)
         .get();
     final userSnapshotData = userSnapshot.docs.first.data();
-    _lieuId = userSnapshotData['Lieux'][0].id;
+
+    setState(() {
+      _lieuId = userSnapshotData['Lieux'][0].id;
+
+      // Vérification que _lieuId n'est pas nul avant de récupérer l'image
+      if (_lieuId != null) {
+        _getImageForLieu(_lieuId!);
+      }
+    });
 
     // Si l'utilisateur est l'administrateur, chargez tous les lieux
     if (_user.email == 'faris.maisonneuve@wanadoo.fr') {
       final lieuxSnapshot =
           await FirebaseFirestore.instance.collection('Lieux').get();
-      _lieuxDropdownItems = lieuxSnapshot.docs
-          .map((doc) => DropdownMenuItem<String>(
-                value: doc.id,
-                child: Text(doc.data()['Nom_lieu'] as String),
-              ))
-          .toList();
-      if (_lieuxDropdownItems!.isNotEmpty) {
-        _lieuId = _lieuxDropdownItems!
-            .first.value; // Sélectionnez le premier lieu par défaut
-      }
+      setState(() {
+        _lieuxDropdownItems = lieuxSnapshot.docs
+            .map((doc) => DropdownMenuItem<String>(
+                  value: doc.id,
+                  child: Text(doc.data()['Nom_lieu'] as String),
+                ))
+            .toList();
+
+        // Vérifier que _lieuxDropdownItems n'est pas nul ou vide avant d'accéder à ses éléments
+        if (_lieuxDropdownItems != null && _lieuxDropdownItems!.isNotEmpty) {
+          _lieuId = _lieuxDropdownItems!.first.value;
+          if (_lieuId != null) {
+            _getImageForLieu(_lieuId!);
+          }
+        }
+      });
     }
 
     setState(() {
@@ -88,178 +110,145 @@ Future<String?> _getImageUrl(String lieuId) async {
       }
     });
   }
-Future<List<Map<String, dynamic>>> _getAmplitudes() async {
-  final QuerySnapshot<Map<String, dynamic>> snapshot =
-      await FirebaseFirestore.instance.collection('Amplitudes').get();
-  return snapshot.docs.map((doc) => doc.data()).toList();
-}
 
- Future<List<Map<String, dynamic>>> _getNotationData(String parcelleId) async {
-  final DocumentSnapshot<Map<String, dynamic>> parcelleSnapshot =
-      await FirebaseFirestore.instance.collection('Parcelles').doc(parcelleId).get();
-
-  List<Map<String, dynamic>> notationsWithTypes = [];
-
-  if (parcelleSnapshot.exists) {
-    List<dynamic> notations = parcelleSnapshot.data()!['Notations'];
-
-    for (String nomNotation in notations) {
-      final DocumentSnapshot<Map<String, dynamic>> notationSnapshot =
-          await FirebaseFirestore.instance.collection('Notations').doc(nomNotation).get();
-
-      if (notationSnapshot.exists) {
-        var notationData = notationSnapshot.data()!;
-        print('Fetched Notation Data for $nomNotation: $notationData'); // Debug: Print fetched data
-        notationsWithTypes.add({
-          'nom': nomNotation,
-          'type': notationData['type'],
-          'alias': notationData['alias'] // Add alias to the data
-        });
-      } else {
-        print('Notation $nomNotation does not exist.');
-      }
-    }
-  } else {
-    print('Parcelle with ID $parcelleId does not exist.');
+  Future<List<Map<String, dynamic>>> _getAmplitudes() async {
+    final QuerySnapshot<Map<String, dynamic>> snapshot =
+        await FirebaseFirestore.instance.collection('Amplitudes').get();
+    return snapshot.docs.map((doc) => doc.data()).toList();
   }
 
-  return notationsWithTypes;
-}
-Future<bool> _doesObservationExist(String parcelleId, String notationName) async {
-  final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
-      .collection('Observations')
-      .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
-      .where('Notations', isEqualTo: notationName)
-      .get();
-  return snapshot.docs.isNotEmpty;
-}
+  Future<List<Map<String, dynamic>>> _getNotationData(String parcelleId) async {
+    final DocumentSnapshot<Map<String, dynamic>> parcelleSnapshot =
+        await FirebaseFirestore.instance.collection('Parcelles').doc(parcelleId).get();
 
-Future<void> _saveData() async {
-  bool isSaved = false;
+    List<Map<String, dynamic>> notationsWithTypes = [];
 
-  for (int i = 0; i < _rows.length; i++) {
-    final row = _rows[i];
-    final parcelleId = row['parcelle'];
-    final notationName = row['notation'];
-    final TextEditingController noteController = row['selectedNotationType'] == 'libre' ? row['noteController'] : row['Note'];
-    final String noteText = noteController.text;
+    if (parcelleSnapshot.exists) {
+      List<dynamic> notations = parcelleSnapshot.data()!['Notations'];
 
-    if (parcelleId != null && notationName != null && noteText.isNotEmpty) {
-      final List<Map<String, dynamic>> notationData = await _getNotationData(parcelleId);
-      final Map<String, dynamic>? notationInfo = notationData.firstWhere(
-          (notation) => notation['nom'] == notationName,
-          orElse: () => {'type': null});
-      final String? notationType = notationInfo?['type'];
+      for (String nomNotation in notations) {
+        final DocumentSnapshot<Map<String, dynamic>> notationSnapshot =
+            await FirebaseFirestore.instance.collection('Notations').doc(nomNotation).get();
 
-      // Validation de la note en fonction du type de notation
-      bool isNoteValid = true;
-      if (notationType != 'libre') {
-        // Suppression de la vérification d'amplitude
-        // Enlève la logique d'amplitude et ajuste directement les limites de validation
-        final int min = 0; // Valeur par défaut ou à ajuster
-        final int max = 20; // Valeur par défaut ou à ajuster
-
-        isNoteValid = int.tryParse(noteText) != null &&
-            int.parse(noteText) >= min &&
-            int.parse(noteText) <= max;
+        if (notationSnapshot.exists) {
+          var notationData = notationSnapshot.data()!;
+          print('Fetched Notation Data for $nomNotation: $notationData'); // Debug: Print fetched data
+          notationsWithTypes.add({
+            'nom': nomNotation,
+            'type': notationData['type'],
+            'alias': notationData['alias'] // Add alias to the data
+          });
+        } else {
+          print('Notation $nomNotation does not exist.');
+        }
       }
+    } else {
+      print('Parcelle with ID $parcelleId does not exist.');
+    }
 
-      if (!isNoteValid) {
+    return notationsWithTypes;
+  }
+
+  Future<bool> _doesObservationExist(String parcelleId, String notationName) async {
+    final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
+        .collection('Observations')
+        .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
+        .where('Notations', isEqualTo: notationName)
+        .get();
+    return snapshot.docs.isNotEmpty;
+  }
+
+  Future<void> _saveData() async {
+    bool isSaved = false;
+
+    for (int i = 0; i < _rows.length; i++) {
+      final row = _rows[i];
+      final parcelleId = row['parcelle'];
+      final notationName = row['notation'];
+      final TextEditingController noteController =
+          row['selectedNotationType'] == 'libre' ? row['noteController'] : row['Note'];
+      final String noteText = noteController.text;
+
+      if (parcelleId != null && notationName != null && noteText.isNotEmpty) {
+        final List<Map<String, dynamic>> notationData = await _getNotationData(parcelleId);
+        final Map<String, dynamic>? notationInfo = notationData.firstWhere(
+            (notation) => notation['nom'] == notationName,
+            orElse: () => {'type': null});
+        final String? notationType = notationInfo?['type'];
+
+        bool isNoteValid = true;
+        if (notationType != 'libre') {
+          final int min = 0; // Valeur par défaut ou à ajuster
+          final int max = 20; // Valeur par défaut ou à ajuster
+
+          isNoteValid = int.tryParse(noteText) != null &&
+              int.parse(noteText) >= min &&
+              int.parse(noteText) <= max;
+        }
+
+        if (!isNoteValid) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('La note pour "$notationName" doit être entre 0 et 20.'),
+            ),
+          );
+          return;
+        }
+
+        bool observationExists = await _doesObservationExist(parcelleId, notationName);
+
+        if (observationExists) {
+          bool shouldReplace = await _showReplaceDialog();
+          if (shouldReplace) {
+            await _addObservation(parcelleId, notationName, noteText, replace: true);
+          } else {
+            return;
+          }
+        } else {
+          await _addObservation(parcelleId, notationName, noteText);
+        }
+
+        isSaved = true;
+      } else if (noteText.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('La note pour "$notationName" doit être entre 0 et 20.'),
-          ),
+          const SnackBar(content: Text('Vous ne pouvez pas enregistrer des données vides.')),
         );
         return;
       }
+    }
 
-      bool observationExists = await _doesObservationExist(parcelleId, notationName);
-
-      if (observationExists) {
-        bool shouldReplace = await _showReplaceDialog();
-        if (shouldReplace) {
-          await _addObservation(parcelleId, notationName, noteText, replace: true);
-        } else {
-          return;
-        }
-      } else {
-        await _addObservation(parcelleId, notationName, noteText);
-      }
-
-      isSaved = true;
-    } else if (noteText.isNotEmpty) {
+    if (isSaved) {
+      setState(() {
+        _rows.clear();
+        _hasUnsavedData = false;
+      });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vous ne pouvez pas enregistrer des données vides.')),
+        const SnackBar(content: Text('Données enregistrées avec succès')),
       );
-      return;
     }
   }
 
-  if (isSaved) {
-    setState(() {
-      _rows.clear();
-      _hasUnsavedData = false;
+  Future<void> _addObservation(String parcelleId, String notation, String note,
+      {bool replace = false}) async {
+    if (replace) {
+      final QuerySnapshot<Map<String, dynamic>> existingObservations = await FirebaseFirestore.instance
+          .collection('Observations')
+          .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
+          .where('Notations', isEqualTo: notation)
+          .get();
+      for (var doc in existingObservations.docs) {
+        await doc.reference.delete();
+      }
+    }
+
+    await FirebaseFirestore.instance.collection('Observations').add({
+      'Date_observation': Timestamp.now(),
+      'Observateur': FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
+      'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
+      'Note': note,
+      'Notations': notation,
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Données enregistrées avec succès')),
-    );
   }
-}
-
-
-
-// Méthode d'enregistrement dans Firestore (à adapter selon votre structure de données)
-Future<void> _addObservation(String parcelleId, String notation, String note, {bool replace = false}) async {
-  if (replace) {
-    // Supprimer les anciennes observations avant d'ajouter la nouvelle
-    final QuerySnapshot<Map<String, dynamic>> existingObservations = await FirebaseFirestore.instance
-        .collection('Observations')
-        .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
-        .where('Notations', isEqualTo: notation)
-        .get();
-    for (var doc in existingObservations.docs) {
-      await doc.reference.delete();
-    }
-  }
-
-  await FirebaseFirestore.instance.collection('Observations').add({
-    'Date_observation': Timestamp.now(),
-    'Observateur': FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
-    'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
-    'Note': note,
-    'Notations': notation,
-  });
-}
-
-
-Future<bool> _showReplaceDialog() async {
-  return await showDialog<bool>(
-    context: context,
-    builder: (BuildContext context) {
-      return AlertDialog(
-        title: const Text('Confirmation'),
-        content: const Text('Une observation similaire existe déjà. Voulez-vous la remplacer ?'),
-        actions: <Widget>[
-          TextButton(
-            child: const Text('Non'),
-            onPressed: () {
-              Navigator.of(context).pop(false);
-            },
-          ),
-          TextButton(
-            child: const Text('Oui'),
-            onPressed: () {
-              Navigator.of(context).pop(true);
-            },
-          ),
-        ],
-      );
-    },
-  ) ?? false; 
-}
-
- 
-
   Future<void> _createNewObservateur(BuildContext context) {
     final TextEditingController observateurIdController =
         TextEditingController();
@@ -424,6 +413,32 @@ Future<bool> _showReplaceDialog() async {
     }
   }
 
+  Future<bool> _showReplaceDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (BuildContext context) {
+            return AlertDialog(
+              title: const Text('Confirmation'),
+              content: const Text('Une observation similaire existe déjà. Voulez-vous la remplacer ?'),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(false);
+                  },
+                  child: const Text('Non'),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                  },
+                  child: const Text('Oui'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
   
 
 @override
@@ -438,28 +453,16 @@ Widget build(BuildContext context) {
               children: [
                 // Afficher l'image uniquement pour les observateurs
 if (_user.email != 'faris.maisonneuve@wanadoo.fr') ...[
-  FutureBuilder<String?>(
-    future: _getImageUrl(_lieuId!),
-    builder: (context, snapshot) {
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Center(child: CircularProgressIndicator());
-      } else if (snapshot.hasError) {
-        return Text('Error: ${snapshot.error}');
-      } else if (!snapshot.hasData || snapshot.data == null) {
-        return const Text('Aucune image disponible'); // Afficher un message de débogage
-      } else {
-        final imageUrl = snapshot.data!;
-         return InteractiveViewer(
+  _imageUrl != null
+    ? InteractiveViewer(
         child: Image.network(
-          imageUrl,
+          _imageUrl!,
           height: 300, // Ajuste la hauteur selon tes besoins
           width: double.infinity,
           fit: BoxFit.contain,
-              ),
-      );
-    }
-  },
-)
+        ),
+      )
+    : const Text('Aucune image disponible'), // Message si l'image n'est pas encore chargée
 ],
 
 if (_user.email == 'faris.maisonneuve@wanadoo.fr') ...[
@@ -606,7 +609,9 @@ TableCell(
                     return DropdownMenuItem<String>(
                       value: notation['nom'],
                       child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: 150), // Ajustez selon vos besoins
+                        constraints: BoxConstraints(
+                          maxWidth: 50, // Ajuste la largeur maximale de la liste déroulante de Notations
+                        ),
                         child: Tooltip(
                           message: (notation['alias'] != null && notation['alias']!.isNotEmpty)
                             ? '${notation['nom']} (${notation['alias']})'
@@ -622,6 +627,8 @@ TableCell(
                     );
                   },
                 ).toList(),
+                // Ajuste la largeur du DropdownButton lui-même pour correspondre à la largeur maximale
+                isExpanded: true, // Permet à DropdownButton d'occuper toute la largeur disponible
               );
             }
           },
@@ -701,10 +708,19 @@ TableCell(
 
                         return DropdownMenuItem<String>(
                           value: value,
-                          child: Text(displayText),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                             
+                            ),
+                            child: Text(
+                              displayText,
+                              overflow: TextOverflow.ellipsis, // Tronque le texte si nécessaire
+                            ),
+                          ),
                         );
                       },
                     ).toList(),
+                isExpanded: true, // Permet au DropdownButton de s'étendre sur toute la largeur disponible
               ),
             );
           }
