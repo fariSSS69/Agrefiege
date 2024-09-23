@@ -21,8 +21,8 @@ class _DashboardPageState extends State<DashboardPage> {
   List<Map<String, dynamic>> _filteredObservations = [];
   bool _isAscending = true;
   int _sortColumnIndex = 0;
-  int _currentLimit = 2;
-  final int _defaultLimit = 2;
+  int _currentLimit = 100;
+  final int _defaultLimit = 100;
 
   // Contrôleurs pour les filtres
   TextEditingController _lieuController = TextEditingController();
@@ -231,13 +231,13 @@ class _DashboardPageState extends State<DashboardPage> {
 
   void _loadMore() {
     setState(() {
-      _currentLimit += 2;
+      _currentLimit += 100;
     });
   }
 
   void _loadLess() {
     setState(() {
-      _currentLimit = (_currentLimit - 2).clamp(_defaultLimit, _filteredObservations.length);
+      _currentLimit = (_currentLimit - 100).clamp(_defaultLimit, _filteredObservations.length);
     });
   }
 
