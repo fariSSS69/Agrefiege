@@ -41,7 +41,7 @@ class _DashboardPageState extends State<DashboardPage> {
     
     List<Map<String, dynamic>> allObservations = [];
 
-    if (_user.email == 'faris.maisonneuve@wanadoo.fr') {
+    if (_user.email == 'dours.ollivier0822@orange.fr') {
       final lieuxSnapshot = await FirebaseFirestore.instance.collection('Lieux').get();
       for (final lieuDoc in lieuxSnapshot.docs) {
         final parcellesSnapshot = await FirebaseFirestore.instance
@@ -139,7 +139,7 @@ class _DashboardPageState extends State<DashboardPage> {
   void _filterObservations() {
     List<Map<String, dynamic>> filtered = _observations;
 
-    if (_user.email == 'faris.maisonneuve@wanadoo.fr' && _lieuController.text.isNotEmpty) {
+    if (_user.email == 'dours.ollivier0822@orange.fr' && _lieuController.text.isNotEmpty) {
       filtered = filtered.where((observation) =>
         observation['Lieu'].toLowerCase().contains(_lieuController.text.toLowerCase())).toList();
     }
@@ -270,7 +270,7 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
       body: Column(
         children: [
-          if (_user.email == 'faris.maisonneuve@wanadoo.fr') ...[
+          if (_user.email == 'dours.ollivier0822@orange.fr') ...[
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: Row(

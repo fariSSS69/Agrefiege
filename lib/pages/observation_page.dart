@@ -64,7 +64,7 @@ class _ObservationPageState extends State<ObservationPage> {
     });
 
     // Si l'utilisateur est l'administrateur, chargez tous les lieux
-    if (_user.email == 'faris.maisonneuve@wanadoo.fr') {
+    if (_user.email == 'dours.ollivier0822@orange.fr') {
       final lieuxSnapshot =
           await FirebaseFirestore.instance.collection('Lieux').get();
       setState(() {
@@ -449,7 +449,7 @@ Widget build(BuildContext context) {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Afficher l'image uniquement pour les observateurs
-          if (_user.email != 'faris.maisonneuve@wanadoo.fr') ...[
+          if (_user.email != 'dours.ollivier0822@orange.fr') ...[
             _imageUrl != null
               ? InteractiveViewer(
                   child: Image.network(
@@ -462,7 +462,7 @@ Widget build(BuildContext context) {
               : const Text('Aucune image disponible'), // Message si l'image n'est pas encore chargée
           ],
 
-          if (_user.email == 'faris.maisonneuve@wanadoo.fr') ...[
+          if (_user.email == 'dours.ollivier0822@orange.fr') ...[
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: DropdownButton<String>(

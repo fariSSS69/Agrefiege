@@ -59,9 +59,9 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
     _fetchLieux();
     _fetchNotations();
     _userEmail = FirebaseAuth.instance.currentUser?.email ?? '';
-    isAdmin = _userEmail == 'faris.maisonneuve@wanadoo.fr' ||
+    isAdmin = _userEmail == 'dours.ollivier0822@orange.fr' ||
         FirebaseAuth.instance.currentUser?.email ==
-            'faris.maisonneuve@wanadoo.fr';
+            'dours.ollivier0822@orange.fr';
     _tabController =
         MotionTabBarController(length: isAdmin ? 4 : 4, vsync: this);
     parcellesCollection = FirebaseFirestore.instance.collection('Parcelles');
