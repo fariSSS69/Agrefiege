@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '688730428333',
     projectId: 'agrefiege-9e11a',
     storageBucket: 'agrefiege-9e11a.appspot.com',
-    iosBundleId: 'com.example.agrefiege',
+    iosBundleId: 'com.faris.agrefiege.agrefiege',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '688730428333',
     projectId: 'agrefiege-9e11a',
     storageBucket: 'agrefiege-9e11a.appspot.com',
-    iosBundleId: 'com.example.agrefiege',
+    iosBundleId: 'com.faris.agrefiege.agrefiege',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
