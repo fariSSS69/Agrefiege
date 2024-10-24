@@ -171,7 +171,7 @@ class _DashboardPageState extends State<DashboardPage> {
     final smtpServer = gmail(username, password);
 
     final message = Message()
-      ..from = Address(username, 'Faris') // Nom de l'expéditeur
+      ..from = Address(username, 'Agrefiege') // Nom de l'expéditeur
       ..recipients.add(email) // Email du destinataire
       ..subject = 'Export des observations'
       ..text = 'Voici les observations exportées en pièce jointe.'
