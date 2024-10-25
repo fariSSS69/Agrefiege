@@ -95,8 +95,9 @@ class _ObservationPageState extends State<ObservationPage> {
       _rows.add({
         'parcelle': null,
         'notation': null,
-        'selectedNotationType': null, // Ajout de cette clé
-        'noteController': TextEditingController(),
+        'selectedNotationType': null,
+        'noteController': TextEditingController(), // Champ de texte pour la note
+          'isSelected': false,  // Assurez-vous d'initialiser cela
       });
       _hasUnsavedData = true;
     });
@@ -148,6 +149,39 @@ class _ObservationPageState extends State<ObservationPage> {
 
     return notationsWithTypes;
   }
+void _addRowsForParcelle(String parcelleId) async {
+  final notationData = await _getNotationData(parcelleId);
+  setState(() {
+    _rows.clear(); // Efface les lignes existantes
+    for (var notation in notationData) {
+      _rows.add({
+        'parcelle': parcelleId,
+        'notation': notation['nom'],
+        'selectedNotationType': null,
+        'noteController': TextEditingController(),
+        'Note': TextEditingController(),
+        'selected': false, // Ajout de la case à cocher
+      });
+    }
+    _hasUnsavedData = true;
+  });
+}
+
+// Méthode pour mettre à jour l'observation
+Future<void> _updateObservation(String parcelleId, String notationName, String noteText) async {
+  final docRef = FirebaseFirestore.instance.collection('Observations')
+      .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
+      .where('Notations', isEqualTo: notationName)
+      .limit(1); // Limit to 1 document
+
+  final QuerySnapshot<Map<String, dynamic>> snapshot = await docRef.get();
+  if (snapshot.docs.isNotEmpty) {
+    final documentId = snapshot.docs.first.id; // Get the document ID
+    await FirebaseFirestore.instance.collection('Observations').doc(documentId).update({
+      'Note': noteText, // Remplacez par le nom de votre colonne pour la note
+    });
+  }
+}
 
   Future<bool> _doesObservationExist(String parcelleId, String notationName) async {
     final QuerySnapshot<Map<String, dynamic>> snapshot = await FirebaseFirestore.instance
@@ -158,97 +192,59 @@ class _ObservationPageState extends State<ObservationPage> {
     return snapshot.docs.isNotEmpty;
   }
 
-  Future<void> _saveData() async {
-    bool isSaved = false;
+Future<void> _saveData() async {
+  bool isSaved = false;
 
-    for (int i = 0; i < _rows.length; i++) {
-      final row = _rows[i];
+  for (int i = 0; i < _rows.length; i++) {
+    final row = _rows[i];
+
+    // Vérifiez si la case est cochée
+    if (row['isSelected'] ?? false) {  
       final parcelleId = row['parcelle'];
       final notationName = row['notation'];
-      final TextEditingController noteController =
-          row['selectedNotationType'] == 'libre' ? row['noteController'] : row['Note'];
+      final TextEditingController noteController = 
+          row['selectedNotationType'] == 'libre' ? 
+          row['noteController'] : row['Note'];
       final String noteText = noteController.text;
 
+      // Imprimer les valeurs récupérées pour débogage
+      print('Processing observation for parcelle: $parcelleId, notation: $notationName, note: $noteText');
+
       if (parcelleId != null && notationName != null && noteText.isNotEmpty) {
-        final List<Map<String, dynamic>> notationData = await _getNotationData(parcelleId);
-        final Map<String, dynamic>? notationInfo = notationData.firstWhere(
-            (notation) => notation['nom'] == notationName,
-            orElse: () => {'type': null});
-        final String? notationType = notationInfo?['type'];
-
-        bool isNoteValid = true;
-        if (notationType != 'libre') {
-          final int min = 0; // Valeur par défaut ou à ajuster
-          final int max = 20; // Valeur par défaut ou à ajuster
-
-          isNoteValid = int.tryParse(noteText) != null &&
-              int.parse(noteText) >= min &&
-              int.parse(noteText) <= max;
-        }
-
-        if (!isNoteValid) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('La note pour "$notationName" doit être entre 0 et 20.'),
-            ),
-          );
-          return;
-        }
-
-        bool observationExists = await _doesObservationExist(parcelleId, notationName);
-
-        if (observationExists) {
-          bool shouldReplace = await _showReplaceDialog();
-          if (shouldReplace) {
-            await _addObservation(parcelleId, notationName, noteText, replace: true);
-          } else {
-            return;
-          }
-        } else {
-          await _addObservation(parcelleId, notationName, noteText);
-        }
-
+        // Ajoutez une nouvelle observation sans vérification d'existence
+        await _addObservation(parcelleId, notationName, noteText);
+        print('Added new observation for parcelle: $parcelleId, notation: $notationName');
         isSaved = true;
-      } else if (noteText.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Vous ne pouvez pas enregistrer des données vides.')),
-        );
-        return;
       }
-    }
-
-    if (isSaved) {
-      setState(() {
-        _rows.clear();
-        _hasUnsavedData = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Données enregistrées avec succès')),
-      );
     }
   }
 
-  Future<void> _addObservation(String parcelleId, String notation, String note,
-      {bool replace = false}) async {
-    if (replace) {
-      final QuerySnapshot<Map<String, dynamic>> existingObservations = await FirebaseFirestore.instance
-          .collection('Observations')
-          .where('Parcelle', isEqualTo: FirebaseFirestore.instance.doc('Parcelles/$parcelleId'))
-          .where('Notations', isEqualTo: notation)
-          .get();
-      for (var doc in existingObservations.docs) {
-        await doc.reference.delete();
-      }
-    }
-
-    await FirebaseFirestore.instance.collection('Observations').add({
-      'Date_observation': Timestamp.now(),
-      'Observateur': FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
-      'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
-      'Note': note,
-      'Notations': notation,
+  if (isSaved) {
+    setState(() {
+      _hasUnsavedData = false; // Réinitialisez l'état après l'enregistrement
+      _rows.clear(); // Vider les lignes après un enregistrement réussi
     });
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Données enregistrées avec succès')));
+  } else {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Aucune donnée sélectionnée à enregistrer')));
   }
+}
+
+
+
+
+
+  Future<void> _addObservation(String parcelleId, String notation, String note) async {
+  // Ajoutez simplement la nouvelle observation à Firestore sans vérification de remplacement
+  await FirebaseFirestore.instance.collection('Observations').add({
+    'Date_observation': Timestamp.now(),
+    'Observateur': FirebaseFirestore.instance.doc('Observateurs/${_user.uid}'),
+    'Parcelle': FirebaseFirestore.instance.doc('Parcelles/$parcelleId'),
+    'Note': note,
+    'Notations': notation,
+  });
+}
+
   Future<void> _createNewObservateur(BuildContext context) {
     final TextEditingController observateurIdController =
         TextEditingController();
@@ -451,15 +447,15 @@ Widget build(BuildContext context) {
           // Afficher l'image uniquement pour les observateurs
           if (_user.email != 'dours.ollivier0822@orange.fr') ...[
             _imageUrl != null
-              ? InteractiveViewer(
-                  child: Image.network(
-                    _imageUrl!,
-                    height: 300, // Ajuste la hauteur selon tes besoins
-                    width: double.infinity,
-                    fit: BoxFit.contain,
-                  ),
-                )
-              : const Text('Aucune image disponible'), // Message si l'image n'est pas encore chargée
+                ? InteractiveViewer(
+                    child: Image.network(
+                      _imageUrl!,
+                      height: 300, // Ajuste la hauteur selon tes besoins
+                      width: double.infinity,
+                      fit: BoxFit.contain,
+                    ),
+                  )
+                : const Text('Aucune image disponible'), // Message si l'image n'est pas encore chargée
           ],
 
           if (_user.email == 'dours.ollivier0822@orange.fr') ...[
@@ -482,6 +478,7 @@ Widget build(BuildContext context) {
               ),
             ),
           ],
+
           FutureBuilder<QuerySnapshot>(
             future: FirebaseFirestore.instance
                 .collection('Parcelles')
@@ -513,7 +510,7 @@ Widget build(BuildContext context) {
                                   child: Text(
                                     'Parcelles',
                                     style: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -522,7 +519,7 @@ Widget build(BuildContext context) {
                                   child: Text(
                                     'Notations',
                                     style: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 15,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -531,7 +528,16 @@ Widget build(BuildContext context) {
                                   child: Text(
                                     'Notes',
                                     style: TextStyle(
-                                      fontSize: 18,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                const TableCell(
+                                  child: Text(
+                                    'Choisir',
+                                    style: TextStyle(
+                                      fontSize: 15,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
@@ -553,7 +559,9 @@ Widget build(BuildContext context) {
                                         onChanged: (newValue) {
                                           setState(() {
                                             row['parcelle'] = newValue;
-                                            row['notation'] = null;
+                                            row['notation'] = null; // Réinitialise la notation lorsque la parcelle change
+                                            // Ajoute toutes les notations associées à la nouvelle parcelle
+                                            _addRowsForParcelle(newValue!); // Appelle la méthode pour ajouter les notations
                                           });
                                         },
                                         items: parcelles.map<DropdownMenuItem<String>>(
@@ -572,144 +580,162 @@ Widget build(BuildContext context) {
                                       height: 56,
                                       alignment: Alignment.center,
                                       child: row['parcelle'] != null
-                                        ? FutureBuilder<List<Map<String, dynamic>>>(
-                                            future: _getNotationData(row['parcelle']),
-                                            builder: (context, snapshot) {
-                                              if (snapshot.hasError) {
-                                                return Text('Erreur: ${snapshot.error}');
-                                              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                               return Container();
-                                              } else {
-                                                List<Map<String, dynamic>> notationsData = snapshot.data!;
-                                                return DropdownButton<String>(
-                                                  value: row['notation'],
-                                                  onChanged: (newValue) {
-                                                    setState(() {
-                                                      row['notation'] = newValue;
-                                                      row['Note'] = TextEditingController();
-                                                      row['selectedNotationType'] = notationsData.firstWhere(
-                                                        (notation) => notation['nom'] == newValue,
-                                                        orElse: () => {'type': null},
-                                                      )['type'];
-                                                    });
-                                                  },
-                                                  items: notationsData.map<DropdownMenuItem<String>>(
-                                                    (Map<String, dynamic> notation) {
-                                                      return DropdownMenuItem<String>(
-                                                        value: notation['nom'],
-                                                        child: ConstrainedBox(
-                                                          constraints: BoxConstraints(
-                                                            maxWidth: 50, // Ajuste la largeur maximale de la liste déroulante de Notations
-                                                          ),
-                                                          child: Tooltip(
-                                                            message: (notation['alias'] != null && notation['alias']!.isNotEmpty)
-                                                              ? '${notation['nom']} (${notation['alias']})'
-                                                              : notation['nom'],
-                                                            child: Text(
-                                                              (notation['alias'] != null && notation['alias']!.isNotEmpty)
-                                                                ? '${notation['nom']} (${notation['alias']})'
-                                                                : notation['nom'],
-                                                              overflow: TextOverflow.ellipsis,
+                                          ? FutureBuilder<List<Map<String, dynamic>>>(
+                                              future: _getNotationData(row['parcelle']),
+                                              builder: (context, snapshot) {
+                                                if (snapshot.hasError) {
+                                                  return Text('Erreur: ${snapshot.error}');
+                                                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                                  return Container();
+                                                } else {
+                                                  List<Map<String, dynamic>> notationsData = snapshot.data!;
+                                                  return DropdownButton<String>(
+                                                    value: row['notation'],
+                                                    onChanged: (newValue) {
+                                                      setState(() {
+                                                        row['notation'] = newValue;
+                                                        row['Note'] = TextEditingController();
+                                                        row['selectedNotationType'] = notationsData.firstWhere(
+                                                          (notation) => notation['nom'] == newValue,
+                                                          orElse: () => {'type': null},
+                                                        )['type'];
+                                                        row['isSelected'] = true; // Coche automatiquement "Choisir"
+                                                      });
+                                                    },
+                                                    items: notationsData.map<DropdownMenuItem<String>>(
+                                                      (Map<String, dynamic> notation) {
+                                                        return DropdownMenuItem<String>(
+                                                          value: notation['nom'],
+                                                          child: ConstrainedBox(
+                                                            constraints: BoxConstraints(
+                                                              maxWidth: 50, // Ajuste la largeur maximale de la liste déroulante de Notations
+                                                            ),
+                                                            child: Tooltip(
+                                                              message: (notation['alias'] != null && notation['alias']!.isNotEmpty)
+                                                                  ? '${notation['nom']} (${notation['alias']})'
+                                                                  : notation['nom'],
+                                                              child: Text(
+                                                                (notation['alias'] != null && notation['alias']!.isNotEmpty)
+                                                                    ? '${notation['nom']} (${notation['alias']})'
+                                                                    : notation['nom'],
+                                                                overflow: TextOverflow.ellipsis,
+                                                              ),
                                                             ),
                                                           ),
-                                                        ),
-                                                      );
-                                                    },
-                                                  ).toList(),
-                                                  isExpanded: true, // Permet à DropdownButton d'occuper toute la largeur disponible
-                                                );
-                                              }
-                                            },
-                                          )
-                                        : Container(),
+                                                        );
+                                                      },
+                                                    ).toList(),
+                                                    isExpanded: true, // Permet à DropdownButton d'occuper toute la largeur disponible
+                                                  );
+                                                }
+                                              },
+                                            )
+                                          : Container(),
                                     ),
                                   ),
                                   TableCell(
                                     child: row['notation'] != null
-                                      ? FutureBuilder<List<Map<String, dynamic>>>(
-                                          future: _getAmplitudes(), // Appel à la méthode pour obtenir les amplitudes
-                                          builder: (context, snapshot) {
-                                            if (snapshot.hasError) {
-                                              return Center(child: Text('Erreur de chargement des amplitudes'));
-                                            }
+                                        ? FutureBuilder<List<Map<String, dynamic>>>(
+                                            future: _getAmplitudes(), // Appel à la méthode pour obtenir les amplitudes
+                                            builder: (context, snapshot) {
+                                              if (snapshot.hasError) {
+                                                return Center(child: Text('Erreur de chargement des amplitudes'));
+                                              }
 
-                                            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                              return Container();
-                                            }
+                                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                                                return Container();
+                                              }
 
-                                            final List<Map<String, dynamic>> amplitudes = snapshot.data!;
-                                            final String selectedNotation = row['notation'];
+                                              final List<Map<String, dynamic>> amplitudes = snapshot.data!;
+                                              final String selectedNotation = row['notation'];
 
-                                            if (row['selectedNotationType'] == 'libre') {
-                                              // Afficher un champ de texte pour les notations libres
-                                              final TextEditingController noteController = row['noteController'];
-                                              return Container(
-                                                height: 56,
-                                                alignment: Alignment.center,
-                                                child: TextField(
-                                                  controller: noteController,
-                                                  decoration: InputDecoration(
-                                                    border: OutlineInputBorder(),
-                                                    hintText: 'Entrez la note',
+                                              if (row['selectedNotationType'] == 'libre') {
+                                                // Afficher un champ de texte pour les notations libres
+                                                final TextEditingController noteController = row['noteController'];
+                                                return Container(
+                                                  height: 56,
+                                                  alignment: Alignment.center,
+                                                  child: TextField(
+                                                    controller: noteController,
+                                                    decoration: InputDecoration(
+                                                      border: OutlineInputBorder(),
+                                                      hintText: 'Entrez la note',
+                                                    ),
+                                                    keyboardType: TextInputType.text,
+                                                    onChanged: (text) {
+                                                      setState(() {
+                                                        row['isSelected'] = true; // Coche automatiquement "Choisir" si une note est saisie
+                                                      });
+                                                    },
                                                   ),
-                                                  keyboardType: TextInputType.text,
-                                                ),
-                                              );
-                                            } else {
-                                              // Trouver l'amplitude correspondante en comparant `nom` et `alias_notation`
-                                              final amplitude = amplitudes.firstWhere(
-                                                (amp) => amp['alias_notation'] == selectedNotation,
-                                                orElse: () => {'valeur_min': 0, 'valeur_max': 10, 'alias_min': '', 'alias_max': ''},
-                                              );
+                                                );
+                                              } else {
+                                                // Trouver l'amplitude correspondante en comparant `nom` et `alias_notation`
+                                                final amplitude = amplitudes.firstWhere(
+                                                  (amp) => amp['alias_notation'] == selectedNotation,
+                                                  orElse: () => {'valeur_min': 0, 'valeur_max': 10, 'alias_min': '', 'alias_max': ''},
+                                                );
 
-                                              final int min = amplitude['valeur_min'] as int;
-                                              final int max = amplitude['valeur_max'] as int;
-                                              final String aliasMin = amplitude['alias_min'] as String;
-                                              final String aliasMax = amplitude['alias_max'] as String;
+                                                final int min = amplitude['valeur_min'] as int;
+                                                final int max = amplitude['valeur_max'] as int;
+                                                final String aliasMin = amplitude['alias_min'] as String;
+                                                final String aliasMax = amplitude['alias_max'] as String;
 
-                                              final TextEditingController noteController = row['Note'];
+                                                final TextEditingController noteController = row['Note'];
 
-                                              return Container(
-                                                height: 56,
-                                                alignment: Alignment.center,
-                                                child: DropdownButton<String>(
-                                                  value: noteController.text.isNotEmpty ? noteController.text : null,
-                                                  onChanged: (newValue) {
-                                                    setState(() {
-                                                      noteController.text = newValue ?? '';
-                                                    });
-                                                  },
-                                                  items: List<String>.generate(max - min + 1, (index) => '${min + index}')
-                                                      .map<DropdownMenuItem<String>>(
-                                                        (String value) {
-                                                          final int intValue = int.parse(value);
-                                                          final String displayText = intValue == min
-                                                              ? '$value ($aliasMin)'
-                                                              : intValue == max
-                                                                  ? '$value ($aliasMax)'
-                                                                  : value;
+                                                return Container(
+                                                  height: 56,
+                                                  alignment: Alignment.center,
+                                                  child: DropdownButton<String>(
+                                                    value: noteController.text.isNotEmpty ? noteController.text : null,
+                                                    onChanged: (newValue) {
+                                                      setState(() {
+                                                        noteController.text = newValue ?? '';
+                                                        row['isSelected'] = true; // Coche automatiquement "Choisir"
+                                                      });
+                                                    },
+                                                    items: List<String>.generate(max - min + 1, (index) => '${min + index}')
+                                                        .map<DropdownMenuItem<String>>(
+                                                          (String value) {
+                                                            final int intValue = int.parse(value);
+                                                            final String displayText = intValue == min
+                                                                ? '$value ($aliasMin)'
+                                                                : intValue == max
+                                                                    ? '$value ($aliasMax)'
+                                                                    : value;
 
-                                                          return DropdownMenuItem<String>(
-                                                            value: value,
-                                                            child: ConstrainedBox(
-                                                              constraints: BoxConstraints(
-                                                                maxWidth: 50, // Ajuste la largeur maximale du DropdownButton
+                                                            return DropdownMenuItem<String>(
+                                                              value: value,
+                                                              child: ConstrainedBox(
+                                                                constraints: BoxConstraints(
+                                                                  maxWidth: 50, // Ajuste la largeur maximale du DropdownButton
+                                                                ),
+                                                                child: Text(
+                                                                  displayText,
+                                                                  overflow: TextOverflow.ellipsis, // Tronque le texte si nécessaire
+                                                                ),
                                                               ),
-                                                              child: Text(
-                                                                displayText,
-                                                                overflow: TextOverflow.ellipsis, // Tronque le texte si nécessaire
-                                                              ),
-                                                            ),
-                                                          );
-                                                        },
-                                                      ).toList(),
-                                                  isExpanded: true, // Permet au DropdownButton de s'étendre sur toute la largeur disponible
-                                                ),
-                                              );
-                                            }
-                                          },
-                                        )
-                                      : Container(), // Gestion des autres cas où row['notation'] est null
+                                                            );
+                                                          },
+                                                        ).toList(),
+                                                    isExpanded: true, // Permet au DropdownButton de s'étendre sur toute la largeur disponible
+                                                  ),
+                                                );
+                                              }
+                                            },
+                                          )
+                                        : Container(), // Gestion des autres cas où row['notation'] est null
+                                  ),
+                                  TableCell(
+                                    child: Checkbox(
+                                      value: row['isSelected'] ?? false, // Utiliser un champ booléen pour l'état de la case à cocher
+                                      onChanged: (bool? value) {
+                                        setState(() {
+                                          row['isSelected'] = value ?? false; // Mettre à jour l'état de la case à cocher, s'assurer que c'est toujours un booléen
+                                          print('Row ${_rows.indexOf(row)} selected: ${row['isSelected']}'); // Imprimez l'état
+                                        });
+                                      },
+                                    ),
                                   ),
                                   TableCell(
                                     child: IconButton(
@@ -772,4 +798,7 @@ Widget build(BuildContext context) {
     ),
   );
 }
+
+
+
 }
