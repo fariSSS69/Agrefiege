@@ -137,30 +137,44 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   void _filterObservations() {
-    List<Map<String, dynamic>> filtered = _observations;
+  List<Map<String, dynamic>> filtered = _observations;
 
-    if (_user.email == 'dours.ollivier0822@orange.fr' && _lieuController.text.isNotEmpty) {
-      filtered = filtered.where((observation) =>
-        observation['Lieu'].toLowerCase().contains(_lieuController.text.toLowerCase())).toList();
-    }
-
-    if (_startDate != null && _endDate != null) {
-      filtered = filtered.where((observation) {
-        DateTime date = observation['Date_observation'];
-        return date.isAfter(_startDate!) && date.isBefore(_endDate!);
-      }).toList();
-    } else if (_startDate != null) {
-      filtered = filtered.where((observation) =>
-        observation['Date_observation'].isAfter(_startDate!)).toList();
-    } else if (_endDate != null) {
-      filtered = filtered.where((observation) =>
-        observation['Date_observation'].isBefore(_endDate!)).toList();
-    }
-
-    setState(() {
-      _filteredObservations = filtered;
-    });
+  // Filtrage par lieu pour les observateurs spécifiques
+  if (_user.email == 'dours.ollivier0822@orange.fr' && _lieuController.text.isNotEmpty) {
+    filtered = filtered.where((observation) =>
+      observation['Lieu'].toLowerCase().contains(_lieuController.text.toLowerCase())
+    ).toList();
   }
+
+  // Ajustement des dates pour inclure toute la journée de début et de fin
+  DateTime? adjustedStartDate = _startDate != null
+      ? DateTime(_startDate!.year, _startDate!.month, _startDate!.day)
+      : null;
+  DateTime? adjustedEndDate = _endDate != null
+      ? DateTime(_endDate!.year, _endDate!.month, _endDate!.day, 23, 59, 59)
+      : null;
+
+  // Filtrage par date en utilisant les dates ajustées
+  if (adjustedStartDate != null && adjustedEndDate != null) {
+    filtered = filtered.where((observation) {
+      DateTime date = observation['Date_observation'];
+      return date.isAfter(adjustedStartDate.subtract(Duration(seconds: 1))) &&
+             date.isBefore(adjustedEndDate.add(Duration(seconds: 1)));
+    }).toList();
+  } else if (adjustedStartDate != null) {
+    filtered = filtered.where((observation) =>
+      observation['Date_observation'].isAfter(adjustedStartDate.subtract(Duration(seconds: 1)))
+    ).toList();
+  } else if (adjustedEndDate != null) {
+    filtered = filtered.where((observation) =>
+      observation['Date_observation'].isBefore(adjustedEndDate.add(Duration(seconds: 1)))
+    ).toList();
+  }
+
+  setState(() {
+    _filteredObservations = filtered;
+  });
+}
 
   Future<void> _sendEmailWithAttachment(String filePath, BuildContext context) async {
     final String email = _user.email ?? 'default@example.com'; // Email de l'utilisateur connecté
