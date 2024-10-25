@@ -575,64 +575,64 @@ Widget build(BuildContext context) {
                                       ),
                                     ),
                                   ),
-                                  TableCell(
-                                    child: Container(
-                                      height: 56,
-                                      alignment: Alignment.center,
-                                      child: row['parcelle'] != null
-                                          ? FutureBuilder<List<Map<String, dynamic>>>(
-                                              future: _getNotationData(row['parcelle']),
-                                              builder: (context, snapshot) {
-                                                if (snapshot.hasError) {
-                                                  return Text('Erreur: ${snapshot.error}');
-                                                } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                                  return Container();
-                                                } else {
-                                                  List<Map<String, dynamic>> notationsData = snapshot.data!;
-                                                  return DropdownButton<String>(
-                                                    value: row['notation'],
-                                                    onChanged: (newValue) {
-                                                      setState(() {
-                                                        row['notation'] = newValue;
-                                                        row['Note'] = TextEditingController();
-                                                        row['selectedNotationType'] = notationsData.firstWhere(
-                                                          (notation) => notation['nom'] == newValue,
-                                                          orElse: () => {'type': null},
-                                                        )['type'];
-                                                        row['isSelected'] = true; // Coche automatiquement "Choisir"
-                                                      });
-                                                    },
-                                                    items: notationsData.map<DropdownMenuItem<String>>(
-                                                      (Map<String, dynamic> notation) {
-                                                        return DropdownMenuItem<String>(
-                                                          value: notation['nom'],
-                                                          child: ConstrainedBox(
-                                                            constraints: BoxConstraints(
-                                                              maxWidth: 50, // Ajuste la largeur maximale de la liste déroulante de Notations
-                                                            ),
-                                                            child: Tooltip(
-                                                              message: (notation['alias'] != null && notation['alias']!.isNotEmpty)
-                                                                  ? '${notation['nom']} (${notation['alias']})'
-                                                                  : notation['nom'],
-                                                              child: Text(
-                                                                (notation['alias'] != null && notation['alias']!.isNotEmpty)
-                                                                    ? '${notation['nom']} (${notation['alias']})'
-                                                                    : notation['nom'],
-                                                                overflow: TextOverflow.ellipsis,
-                                                              ),
-                                                            ),
-                                                          ),
-                                                        );
-                                                      },
-                                                    ).toList(),
-                                                    isExpanded: true, // Permet à DropdownButton d'occuper toute la largeur disponible
-                                                  );
-                                                }
-                                              },
-                                            )
-                                          : Container(),
-                                    ),
-                                  ),
+                                 TableCell(
+  child: Container(
+    height: 56,
+    alignment: Alignment.center,
+    child: row['parcelle'] != null
+        ? FutureBuilder<List<Map<String, dynamic>>>( 
+            future: _getNotationData(row['parcelle']),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text('Erreur: ${snapshot.error}');
+              } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return Container();
+              } else {
+                List<Map<String, dynamic>> notationsData = snapshot.data!;
+                return DropdownButton<String>(
+                  value: row['notation'],
+                  onChanged: (newValue) {
+                    setState(() {
+                      row['notation'] = newValue;
+                      row['Note'] = TextEditingController();
+                      row['selectedNotationType'] = notationsData.firstWhere(
+                        (notation) => notation['nom'] == newValue,
+                        orElse: () => {'type': null},
+                      )['type'];
+                      row['isSelected'] = true; // Coche automatiquement "Choisir"
+                    });
+                  },
+                  items: notationsData.map<DropdownMenuItem<String>>(
+                    (Map<String, dynamic> notation) {
+                      return DropdownMenuItem<String>(
+                        value: notation['nom'],
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: 150, // Largeur permettant d'afficher entierement les Notations (mettre 50 pour revenir en arriere)
+                          ),
+                          child: Tooltip(
+                            message: (notation['alias'] != null && notation['alias']!.isNotEmpty)
+                                ? '${notation['nom']} (${notation['alias']})'
+                                : notation['nom'],
+                            child: Text(
+                              (notation['alias'] != null && notation['alias']!.isNotEmpty)
+                                  ? '${notation['nom']} (${notation['alias']})'
+                                  : notation['nom'],
+                              overflow: TextOverflow.visible, // Changez à visible pour permettre le défilement
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ).toList(),
+                  isExpanded: true, // Permet à DropdownButton d'occuper toute la largeur disponible
+                );
+              }
+            },
+          )
+        : Container(),
+  ),
+),
                                     TableCell(
   child: (row['notation'] == null || row['notation'] == '')
       ? Container() // Gestion des autres cas où row['notation'] est null
