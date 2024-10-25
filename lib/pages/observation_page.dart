@@ -633,99 +633,101 @@ Widget build(BuildContext context) {
                                           : Container(),
                                     ),
                                   ),
-                                  TableCell(
-                                    child: row['notation'] != null
-                                        ? FutureBuilder<List<Map<String, dynamic>>>(
-                                            future: _getAmplitudes(), // Appel à la méthode pour obtenir les amplitudes
-                                            builder: (context, snapshot) {
-                                              if (snapshot.hasError) {
-                                                return Center(child: Text('Erreur de chargement des amplitudes'));
-                                              }
+                                    TableCell(
+  child: (row['notation'] == null || row['notation'] == '')
+      ? Container() // Gestion des autres cas où row['notation'] est null
+      : FutureBuilder<List<Map<String, dynamic>>>(
+          future: _getAmplitudes(), // Appel à la méthode pour obtenir les amplitudes
+          builder: (context, snapshot) {
+            if (snapshot.hasError) {
+              return Center(child: Text('Erreur de chargement des amplitudes'));
+            }
 
-                                              if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                                                return Container();
-                                              }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return Container(); // Renvoie un Container vide si aucune donnée n'est disponible
+            }
 
-                                              final List<Map<String, dynamic>> amplitudes = snapshot.data!;
-                                              final String selectedNotation = row['notation'];
+            final List<Map<String, dynamic>> amplitudes = snapshot.data!;
+            final String selectedNotation = row['notation'] ?? ''; // S'assurer que c'est une chaîne
 
-                                              if (row['selectedNotationType'] == 'libre') {
-                                                // Afficher un champ de texte pour les notations libres
-                                                final TextEditingController noteController = row['noteController'];
-                                                return Container(
-                                                  height: 56,
-                                                  alignment: Alignment.center,
-                                                  child: TextField(
-                                                    controller: noteController,
-                                                    decoration: InputDecoration(
-                                                      border: OutlineInputBorder(),
-                                                      hintText: 'Entrez la note',
-                                                    ),
-                                                    keyboardType: TextInputType.text,
-                                                    onChanged: (text) {
-                                                      setState(() {
-                                                        row['isSelected'] = true; // Coche automatiquement "Choisir" si une note est saisie
-                                                      });
-                                                    },
-                                                  ),
-                                                );
-                                              } else {
-                                                // Trouver l'amplitude correspondante en comparant `nom` et `alias_notation`
-                                                final amplitude = amplitudes.firstWhere(
-                                                  (amp) => amp['alias_notation'] == selectedNotation,
-                                                  orElse: () => {'valeur_min': 0, 'valeur_max': 10, 'alias_min': '', 'alias_max': ''},
-                                                );
+            // Vérifiez si la notation est de type libre
+            if (row['selectedNotationType'] == 'libre' || selectedNotation.contains('libre')) {
+              // Afficher un champ de texte pour les notations libres
+              final TextEditingController noteController = row['Note'];
+              return Container(
+                height: 56,
+                alignment: Alignment.center,
+                child: TextField(
+                  controller: noteController,
+                  decoration: InputDecoration(
+                    border: OutlineInputBorder(),
+                    hintText: 'Entrez la note',
+                  ),
+                  keyboardType: TextInputType.text,
+                  onChanged: (text) {
+                    setState(() {
+                      row['isSelected'] = text.isNotEmpty; // Coche automatiquement "Choisir" si une note est saisie
+                    });
+                  },
+                ),
+              );
+            } else {
+              // Si le type n'est pas libre, recherchez l'amplitude correspondante
+              final amplitude = amplitudes.firstWhere(
+                (amp) => amp['alias_notation'] == selectedNotation,
+                orElse: () => {'valeur_min': 0, 'valeur_max': 11, 'alias_min': '', 'alias_max': ''},
+              );
 
-                                                final int min = amplitude['valeur_min'] as int;
-                                                final int max = amplitude['valeur_max'] as int;
-                                                final String aliasMin = amplitude['alias_min'] as String;
-                                                final String aliasMax = amplitude['alias_max'] as String;
+              final int min = amplitude['valeur_min'] as int;
+              final int max = amplitude['valeur_max'] as int;
+              final String aliasMin = amplitude['alias_min'] as String;
+              final String aliasMax = amplitude['alias_max'] as String;
 
-                                                final TextEditingController noteController = row['Note'];
+              final TextEditingController noteController = row['Note'];
 
-                                                return Container(
-                                                  height: 56,
-                                                  alignment: Alignment.center,
-                                                  child: DropdownButton<String>(
-                                                    value: noteController.text.isNotEmpty ? noteController.text : null,
-                                                    onChanged: (newValue) {
-                                                      setState(() {
-                                                        noteController.text = newValue ?? '';
-                                                        row['isSelected'] = true; // Coche automatiquement "Choisir"
-                                                      });
-                                                    },
-                                                    items: List<String>.generate(max - min + 1, (index) => '${min + index}')
-                                                        .map<DropdownMenuItem<String>>(
-                                                          (String value) {
-                                                            final int intValue = int.parse(value);
-                                                            final String displayText = intValue == min
-                                                                ? '$value ($aliasMin)'
-                                                                : intValue == max
-                                                                    ? '$value ($aliasMax)'
-                                                                    : value;
+              return Container(
+                height: 56,
+                alignment: Alignment.center,
+                child: DropdownButton<String>(
+                  value: noteController.text.isNotEmpty ? noteController.text : null,
+                  onChanged: (newValue) {
+                    setState(() {
+                      noteController.text = newValue ?? '';
+                      row['isSelected'] = true; // Coche automatiquement "Choisir"
+                    });
+                  },
+                  items: List<String>.generate(max - min + 1, (index) => '${min + index}')
+                      .map<DropdownMenuItem<String>>(
+                        (String value) {
+                          final int intValue = int.parse(value);
+                          final String displayText = intValue == min
+                              ? '$value ($aliasMin)'
+                              : intValue == max
+                                  ? '$value ($aliasMax)'
+                                  : value;
 
-                                                            return DropdownMenuItem<String>(
-                                                              value: value,
-                                                              child: ConstrainedBox(
-                                                                constraints: BoxConstraints(
-                                                                  maxWidth: 50, // Ajuste la largeur maximale du DropdownButton
-                                                                ),
-                                                                child: Text(
-                                                                  displayText,
-                                                                  overflow: TextOverflow.ellipsis, // Tronque le texte si nécessaire
-                                                                ),
-                                                              ),
-                                                            );
-                                                          },
-                                                        ).toList(),
-                                                    isExpanded: true, // Permet au DropdownButton de s'étendre sur toute la largeur disponible
-                                                  ),
-                                                );
-                                              }
-                                            },
-                                          )
-                                        : Container(), // Gestion des autres cas où row['notation'] est null
-                                  ),
+                          return DropdownMenuItem<String>(
+                            value: value,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxWidth: 50, // Ajuste la largeur maximale du DropdownButton
+                              ),
+                              child: Text(
+                                displayText,
+                                overflow: TextOverflow.ellipsis, // Tronque le texte si nécessaire
+                              ),
+                            ),
+                          );
+                        },
+                      ).toList(),
+                  isExpanded: true, // Permet au DropdownButton de s'étendre sur toute la largeur disponible
+                ),
+              );
+            }
+          },
+        ),
+),
+
                                   TableCell(
                                     child: Checkbox(
                                       value: row['isSelected'] ?? false, // Utiliser un champ booléen pour l'état de la case à cocher
