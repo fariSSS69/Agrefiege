@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.example" "\0"
+            VALUE "CompanyName", "com.faris.agrefiege" "\0"
             VALUE "FileDescription", "agrefiege" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "agrefiege" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2024 com.example. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2024 com.faris.agrefiege. All rights reserved." "\0"
             VALUE "OriginalFilename", "agrefiege.exe" "\0"
             VALUE "ProductName", "agrefiege" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
